@@ -49,8 +49,8 @@ def return_fnames(dir_in, substr=None, sort_list=True):
     return l
 
 
-def read_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True,
-             drop_stim=True, n_samples=None, return_type='wyrm'):
+def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True,
+              drop_stim=True, n_samples=None, return_type='wyrm'):
     """Converts raw EEG into `dict`/`wyrm.Raw` using `mne.Raw`
 
     Params
@@ -181,8 +181,10 @@ def read_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True,
         raise TypeError(msg)
 
     if dir_out:
+        if not os.path.exists(dir_out):
+            os.makedirs(dir_out)
         path_out = dir_out + paths[0].split('/')[-1].replace(ftype, 'npy')
-        np.save(path_out, raw)
+        np.save(path_out, data)
         print('Successfully wrote data to ' + path_out)
 
     return data
@@ -373,7 +375,7 @@ def append_labels(data, labels):
 
     See also
     --------
-        :func: read_raw
+        :func: parse_raw
         :type: wyrm.Data
     """
     updated_data = []
