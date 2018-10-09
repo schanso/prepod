@@ -160,7 +160,7 @@ def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True
         'n_chans': len(raw.info['ch_names']),
         'time_points': times,
         'markers': [],
-        'starttime': start_time
+        'starttime': datetime.datetime.strptime(start_time, FORMATS['datetime'])
     }
 
     print('Successfully read file(s) ' + ', '.join(paths))
