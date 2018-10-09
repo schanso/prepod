@@ -1,4 +1,4 @@
 prepod/main.py/
 .idea/*
-prepod/__pycache__/*
-prepod/lib/__pycache__/*
+prepod/__pycache__
+prepod/lib/__pycache__
