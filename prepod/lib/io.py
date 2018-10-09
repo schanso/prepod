@@ -1,3 +1,4 @@
+import datetime
 import logging
 import os
 import re
@@ -7,8 +8,8 @@ import numpy as np
 import pandas as pd
 from wyrm.types import Data
 
-from prepod.lib.globals import (SUPPORTED_FTYPES, SUPPORTED_FORMATS,
-                                SUPPORTED_REGIONS)
+from prepod.lib.constants import (SUPPORTED_FTYPES, SUPPORTED_FORMATS,
+                                  SUPPORTED_REGIONS, FORMATS)
 
 
 logging.getLogger('mne').setLevel(logging.ERROR)
@@ -48,7 +49,7 @@ def return_fnames(dir_in, substr=None, sort_list=True):
     return l
 
 
-def read_raw(path_in, region='frontal', ftype='eeg', drop_ref=True,
+def read_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True,
              drop_stim=True, n_samples=None, return_type='wyrm'):
     """Converts raw EEG into `dict`/`wyrm.Raw` using `mne.Raw`
 
@@ -56,13 +57,15 @@ def read_raw(path_in, region='frontal', ftype='eeg', drop_ref=True,
     ------
         path_in : str
             path to raw file
+        dir_out : str or None
+            if not None, will store raw signals in dir_out (.npy)
+        ftype: str
+            file type of raw file, supported formats are read from
+            prepod.lib.constants.`SUPPORTED_FTYPES`
         region : str or None
             regions to return data for; supported strings include:
             'central', 'frontal', 'parietal', 'occipital', 'temporal';
             if None, all channels will be returned
-        ftype: str
-            file type of raw file, supported formats are read from
-            globals.`SUPPORTED_FTYPES`
         drop_ref : boolean
             whether reference electrodes should be dropped
         drop_stim : boolean
@@ -81,7 +84,7 @@ def read_raw(path_in, region='frontal', ftype='eeg', drop_ref=True,
                      'time_points': ndArray, 'markers': list}
             wyrm.Data -> ('data': ndArray [time x channels], axes: list,
                           'names': list, 'units': list, 'fs': float,
-                          'markers': list)
+                          'markers': list, 'starttime': datetime)
 
     Raises
     ------
@@ -91,72 +94,98 @@ def read_raw(path_in, region='frontal', ftype='eeg', drop_ref=True,
     --------
         :type: wyrm.Data
     """
-    path_in = path_in.strip()
-    if ftype in SUPPORTED_FTYPES:
-        try:
-            if ftype == 'edf':
-                raw = mne.io.read_raw_edf(path_in, preload=True)
-            elif ftype == 'eeg':
-                path_in = path_in.replace(ftype, 'vhdr')
-                raw = mne.io.read_raw_brainvision(path_in, preload=True)
-            else:
-                msg = 'File type {} not supported.'.format(ftype)
-                raise TypeError(msg)
-
-            raw = strip_ch_names(raw)
-            if drop_ref:
-                to_drop = [el for el in raw.ch_names if 'Ref' in el]
-                raw.drop_channels(to_drop)
-            if drop_stim:
-                to_drop = [el for el in raw.ch_names if 'STI' in el]
-                raw.drop_channels(to_drop)
-            if region and region in SUPPORTED_REGIONS:
-                to_drop = [el for el in raw.ch_names
-                           if region[0].upper() not in el]
-                raw.drop_channels(to_drop)
-            else:
-                print('Your region of interest is not supported. Choose one of '
-                      + str(SUPPORTED_REGIONS) + '. Will return full set.')
-
-            if n_samples:
-                signal = raw._data[:, :n_samples]
-                times = raw.times[:n_samples]
-            else:
-                signal = raw._data
-                times = raw.times
-
-            d = {
-                'signal': signal,
-                'srate': raw.info['sfreq'],
-                'ch_names': raw.info['ch_names'],
-                'n_chans': len(raw.info['ch_names']),
-                'time_points': times,
-                'markers': []
-            }
-            print('Successfully read file ' + path_in)
-
-            if return_type == 'wyrm':
-                data = d['signal'].transpose()
-                axes = [d['time_points'], d['ch_names']]
-                names = ['time', 'channels']
-                units = ['s', 'µV']
-                data = Data(data, axes, names, units)
-                data.fs = d['srate']
-                data.markers = d['markers']
-                return data
-            elif return_type == 'dict':
-                return d
-            else:
-                msg = 'Return_type {} not supported.'.format(return_type)
-                raise TypeError(msg)
-
-        except Exception as e:
-            print('Failed to load file ' + path_in + '.\n\n Raised: ' + str(e))
-
-    else:
-        msg = ('File format \'{}\' not supported. '
-               + 'Use one of {}.').format(ftype, str(SUPPORTED_FTYPES))
+    if ftype not in SUPPORTED_FTYPES:
+        msg = 'File type {} not supported. Choose one of {}'.format(
+            ftype, ', '.join(SUPPORTED_FTYPES))
         raise TypeError(msg)
+
+    if isinstance(path_in, list):
+        paths = path_in
+    else:
+        if os.path.isdir(path_in):
+            path_in = path_in + '/' if path_in[-1] != '/' else path_in
+            paths = [path_in + el for el in return_fnames(path_in, substr=ftype)]
+        else:
+            paths = [path_in.strip()]
+
+    raw, raws = None, []
+    for idx, path in enumerate(paths):
+        if idx == 0:
+            if ftype == 'edf':
+                raw = mne.io.read_raw_edf(path, preload=True)
+            elif ftype == 'eeg':
+                path = path.replace(ftype, 'vhdr')
+                raw = mne.io.read_raw_brainvision(path, preload=True)
+            raw.cals = np.array([])
+        else:
+            if ftype == 'edf':
+                _raw = mne.io.read_raw_edf(path, preload=True)
+            elif ftype == 'eeg':
+                path = path.replace(ftype, 'vhdr')
+                _raw = mne.io.read_raw_brainvision(path, preload=True)
+            raws.append(_raw)
+
+    if len(raws):
+        raw.append(raws)  # append multiple file to continuous signal
+
+    raw = strip_ch_names(raw)
+    if drop_ref:
+        to_drop = [el for el in raw.ch_names if 'Ref' in el]
+        raw.drop_channels(to_drop)
+    if drop_stim:
+        to_drop = [el for el in raw.ch_names if 'STI' in el]
+        raw.drop_channels(to_drop)
+    if region and region in SUPPORTED_REGIONS:
+        to_drop = [el for el in raw.ch_names
+                   if region[0].upper() not in el]
+        raw.drop_channels(to_drop)
+    else:
+        print('Your region of interest is not supported. Choose one of '
+              + str(SUPPORTED_REGIONS) + '. Will return full set.')
+
+    if n_samples:
+        signal = raw._data[:, :n_samples]
+        times = raw.times[:n_samples]
+    else:
+        signal = raw._data
+        times = raw.times
+
+    start_time = datetime.datetime.utcfromtimestamp(
+        raw.info['meas_date']).strftime(FORMATS['datetime'])
+
+    d = {
+        'signal': signal,
+        'srate': raw.info['sfreq'],
+        'ch_names': raw.info['ch_names'],
+        'n_chans': len(raw.info['ch_names']),
+        'time_points': times,
+        'markers': [],
+        'starttime': start_time
+    }
+
+    print('Successfully read file(s) ' + ', '.join(paths))
+
+    if return_type == 'wyrm':
+        data = d['signal'].transpose()
+        axes = [d['time_points'], d['ch_names']]
+        names = ['time', 'channels']
+        units = ['s', 'µV']
+        data = Data(data, axes, names, units)
+        data.fs = d['srate']
+        data.markers = d['markers']
+        data.starttime = d['starttime']
+    elif return_type == 'dict':
+        data = d
+    else:
+        msg = 'Return_type {} not supported.'.format(return_type)
+        raise TypeError(msg)
+
+    if dir_out:
+        path_out = dir_out + paths[0].split('/')[-1].replace(ftype, 'npy')
+        np.save(path_out, raw)
+        print('Successfully wrote data to ' + path_out)
+
+    return data
 
 
 def read_bis(path_in, from_type='bilateral'):
@@ -243,84 +272,6 @@ def read_bis(path_in, from_type='bilateral'):
     df.reset_index(inplace=True, drop=True)
 
     return df
-
-
-def store_raws(dir_in, dir_out, ftype_in, out_format='wyrm', subset=None):
-    """Wrapper function for `read_raw`, converts raw files in dir to .npy
-
-    Params
-    ------
-        dir_in : str
-            path to dir with raw files
-        dir_out : str
-            path to dir to write to
-        ftype_in : str
-            file type of raw file
-        out_format : str
-            whether data should be stored wyrm- or np-ready
-        subset : str
-            if not None, indicating channel subset by region
-
-    Returns
-    -------
-        None
-
-    Raises
-    ------
-        TypeError if `ftype_in` or `out_format` not supported
-
-    See also
-    --------
-        :func: read_raw
-        :global: SUPPORTED_FTYPES
-        :global: SUPPORTED_FORMATS
-        :global: SUPPORTED_REGIONS
-    """
-    if ftype_in not in SUPPORTED_FTYPES:
-        msg = ('File type \'{}\' currently not supported. '
-               + 'Choose one of {}.').format(ftype_in, str(SUPPORTED_FTYPES))
-        raise TypeError(msg)
-
-    if out_format not in SUPPORTED_FORMATS:
-        msg = ('Format \'{}\' not supported. '
-               + 'Choose one of {}.').format(out_format, str(SUPPORTED_FORMATS))
-        raise TypeError(msg)
-
-    ext = ftype_in
-    if ftype_in == 'eeg':
-        ext = 'vhdr'
-
-    fnames = return_fnames(dir_in, substr=ext, sort_list=True)
-    for fname_in in fnames:
-        path_in = dir_in + fname_in
-        path_out = dir_out + fname_in.replace(ext, 'npy')
-        try:
-            data = read_raw(path_in=path_in, ftype=ftype_in,
-                            return_type=out_format, region=subset)
-            np.save(path_out, data)
-            print('Successfully wrote data to ' + path_out)
-        except Exception as e:
-            msg = ('Failed to write data to {}.'
-                   + '\n\nRaised: {}').format(path_out, str(e))
-            print(msg)
-
-        # TODO: Implement concatenation
-        # if concat:
-        #     print('Concatinating...')
-        #     fnames = return_fnames(dir_out)
-        #     subj_ids = sorted(list(set([el.split('_')[0] for el in fnames])))
-        #     for subj_id in subj_ids:
-        #         fpaths = sorted([dir_out + fname for fname in fnames
-        #                          if subj_id in fname])
-        #         data = np.load(fpaths[0])
-        #         if len(fpaths) > 1:
-        #             for fpath in fpaths[1:]:
-        #                 data = np.concatenate((data, np.load(fpath)), axis=1)
-        #             print('Successfully merged ' + str(len(fpaths)) + ' files for '
-        #                   + str(subj_id) + '.')
-        #         np.save(file=fpaths[0].replace('01', 'complete'), arr=data)
-        #         print('Successfully wrote data to '
-        #               + fpaths[0].replace('01', 'complete'))
 
 
 def import_folder(dir_in, substr=None, exclude=[], in_format='wyrm'):
