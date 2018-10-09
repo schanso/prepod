@@ -2,6 +2,8 @@ import numpy as np
 from scipy.signal import butter, lfilter, iirnotch
 from wyrm.types import Data
 
+from prepod.lib.io import read_bis
+
 
 def feature_vector(data, names=('class', 'amplitude'), units=('#', 'µV')):
     """Creates a 2D feature vector from 3D `wyrm.Data` object
@@ -218,4 +220,67 @@ def filter_raw(raw, srate, h_pass=True, l_pass=True, l_cutoff=1, h_cutoff=100,
         filt = butter_lowpass(data=filt, h_cutoff=h_cutoff, srate=srate,
                               order=order)
     return filt
+
+
+def align_bis(path_signal, path_bis):
+    """"""
+    # TODO: Align on ms instead of s?
+    # TODO: Drop where time jump in BIS > 1s?
+    # TODO: Split into two functions
+    data = np.load(file=path_signal).flatten()[0]
+    bis = read_bis(path_bis)
+    fs_eeg = data.fs
+    eeg_start = data.starttime
+    bis_start = bis['SystemTime'].iloc[0]
+    bis_end = bis['SystemTime'].iloc[bis.shape[0]-1]
+    bis['t_delta'] = bis['SystemTime'].diff().apply(lambda x: x.total_seconds())
+
+    # drop samples pre-BIS recording
+    time_delta = bis_start-eeg_start
+    time_delta_s = time_delta.days * 24 * 3600 + time_delta.seconds
+    new_start = int(time_delta_s * fs_eeg)
+    data.data = data.data[new_start:]
+
+    # drop samples post-BIS recording
+    time_delta = bis_end - bis_start
+    time_delta_s = time_delta.days * 24 * 3600 + time_delta.seconds
+    n_samples = int(time_delta_s * fs_eeg)
+    data.data = data.data[:n_samples]
+    eeg_dur = data.data.shape[0] / fs_eeg
+
+    # create array of BIS vals, one per sample in the EEG
+    bis_values = np.array(bis['BIS'])
+    t_deltas = np.append(np.delete(np.array(bis['t_delta']), 0), 0)
+    n_repeats = np.nan_to_num(t_deltas * fs_eeg, copy=True).astype('int')
+    bis_values = np.repeat(bis_values, n_repeats)  # one bis val per sample in eeg
+    bis_values = bis_values[:data.data.shape[0]]  # drop post-EEG BIS
+
+    # cut into windows of variable length
+    win_sec = 5
+    win_samples = win_sec * fs_eeg
+    n_wins = np.floor(data.data.shape[0] / win_samples)
+    new_start = int(data.data.shape[0] - (n_wins * win_samples))
+    data.data = data.data[new_start:]
+    bis_values = bis_values[new_start:]
+    chunks_data = np.array(np.split(data.data, n_wins))
+    chunks_bis = np.array(np.split(bis_values, n_wins))
+
+    # only keep windows where BIS <= 60
+    new_idx = np.where(np.all(chunks_bis <= 60, axis=1))
+    chunks_data = chunks_data[new_idx]
+    chunks_bis = chunks_bis[new_idx]
+
+    return chunks_data, chunks_bis
+
+
+if __name__ == '__main__':
+    from prepod.lib.io import return_fnames
+
+    subj_id = '2129'
+    path_data = '/Users/jannes/Projects/delir/data/'
+    dir_signal = path_data + 'rec/sudocu/brainvision/raw/npy/frontal/'
+    path_signal = dir_signal + return_fnames(dir_in=dir_signal, substr=subj_id)[0]
+    path_bis = path_data + 'rec/sudocu/bis/' + subj_id + '/'
+    data, bis = align_bis(path_signal=path_signal, path_bis=path_bis)
+    print(data.shape, bis.shape)
 
