@@ -159,6 +159,92 @@ def read_raw(path_in, region='frontal', ftype='eeg', drop_ref=True,
         raise TypeError(msg)
 
 
+def read_bis(path_in, from_type='bilateral'):
+    """Reads in .asp files and returns BIS as a function of time
+
+    Params
+    ------
+        path_in : str
+            path to .asp file or folder containing multiple .asp files
+        from_type : str
+            which data to parse; Rugloop .asp files have three different
+            types stored per file: '2channel', 'monitorrev', 'bilateral'
+
+    Returns
+    -------
+        df : pd.DataFrame
+            table with mean BIS values as a function of time
+            (df.columns: ['RAppTime', 'SystemTime', 'BIS'])
+    """
+    is_dir = os.path.isdir(path_in)
+
+    supported_ftypes = ['asp']
+    if is_dir:
+        if not path_in[-1] == '/':
+            path_in = path_in + '/'
+        fnames = return_fnames(dir_in=path_in, substr='asp')
+        if len(fnames) == 0:
+            msg = 'No files of type `asp` in dir.'
+            raise TypeError(msg)
+        paths = [path_in + el for el in fnames]
+    else:
+        ftype = path_in.split('.')[-1]
+        if ftype not in supported_ftypes:
+            msg = 'File must be of type {}, got {}.'.format(
+                str(supported_ftypes), ftype)
+            raise TypeError(msg)
+        paths = [path_in]
+
+    supported_from_types = ['2channel', 'monitorrev', 'bilateral']
+    idx_long, idx_short, idx_unit = (None, None, None)
+    if from_type in supported_from_types:
+        if from_type == '2channel':
+            idx_long, idx_short, idx_unit = (0, 1, 2)
+        elif from_type == 'monitorrev':
+            idx_long, idx_short, idx_unit = (3, 4, 5)
+        elif from_type == 'bilateral':
+            idx_long, idx_short, idx_unit = (6, 7, 8)
+    else:
+        msg = '`from_type` must be one of {}, got {}.'.format(
+            str(supported_from_types), str(from_type))
+        raise TypeError(msg)
+
+    df = pd.DataFrame(columns=['RAppTime', 'SystemTime', 'BIS'])
+    for path in paths:
+        data = open(path, encoding='ascii', errors='ignore')
+        _df = pd.read_table(data, delimiter='|', dtype='object', skiprows=[0],
+                            header=None)
+
+        _df.columns = _df.iloc[idx_long, :]
+        row_title = _df.iloc[idx_unit, 0]
+        rows_to_drop = [el for el in range(9)]
+        _df = _df.drop(_df.index[rows_to_drop])  # drop header rows
+        _df = _df[_df.iloc[:, 0] == row_title]  # drop wrong-typed rows
+        _df = _df.loc[:, _df.columns.notnull()]  # drop nan cols
+        _df.reset_index(inplace=True, drop=True)
+
+        alg_abbr = ['DB1', 'B3']
+        bis_cols = [el for el in _df.columns for abbr in alg_abbr
+                    if abbr in el  # keep only cols with used alg
+                    and el[-1] in ['L', 'R']]  # drop duplicates (L==2, R==4)
+        df_bis = _df[bis_cols].replace('xxx', np.nan).astype(float)
+        df_bis = df_bis[df_bis.columns[(df_bis > 0).any()]]  # keep only used alg
+        df_bis['BIS'] = df_bis.mean(axis=1)
+
+        time_cols = ['RAppTime', 'SystemTime']
+        df_time = _df[time_cols]
+
+        _df = pd.concat([df_time, df_bis['BIS']], axis=1)  # keep mean only
+        df = pd.concat([df, _df], axis=0)
+
+    df['RAppTime'] = df['RAppTime'].astype('int64', copy=True)
+    df['SystemTime'] = pd.to_datetime(df['SystemTime'])
+    df.sort_values(by=['SystemTime'], inplace=True)
+    df.reset_index(inplace=True, drop=True)
+
+    return df
+
+
 def store_raws(dir_in, dir_out, ftype_in, out_format='wyrm', subset=None):
     """Wrapper function for `read_raw`, converts raw files in dir to .npy
 
