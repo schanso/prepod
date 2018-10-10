@@ -233,9 +233,10 @@ def filter_raw(raw, srate, h_pass=True, l_pass=True, l_cutoff=1, h_cutoff=100,
 
 def align_bis(path_signal, path_bis):
     """"""
-    # TODO: Align on ms instead of s?
-    # TODO: Drop where time jump in BIS > 1s?
+    # TODO: Align on ms instead of s? Align on every BIS value (Time stamp)
+    # TODO: Drop where time jump in BIS >> 1s?
     # TODO: Split into two functions
+    # TODO: Find 'drop post-BIS EEG' bug
     if not isinstance(path_signal, str):
         msg = 'Please provide file path as str, got {}'.format(type(path_signal))
         raise TypeError(msg)
@@ -252,12 +253,15 @@ def align_bis(path_signal, path_bis):
     time_delta = bis_start-eeg_start
     time_delta_s = time_delta.days * 24 * 3600 + time_delta.seconds
 
-    if time_delta_s < 0:  # eeg start after bis start
+    if time_delta_s < 0:  # drop bis vals if start before eeg start
         bis = bis.drop(bis[bis['SystemTime'] < eeg_start].index)
+        bis.reset_index(inplace=True)
         bis_start = bis['SystemTime'].iloc[0]
-    else:  # bis start after eeg start
-        new_start = int(time_delta_s * fs_eeg)
-        data.data = data.data[new_start:]
+        time_delta = bis_start - eeg_start
+        time_delta_s = time_delta.days * 24 * 3600 + time_delta.seconds
+
+    new_start = int(time_delta_s * fs_eeg)
+    data.data = data.data[new_start:]
 
     # drop samples post-BIS recording
     bis_values = np.array(bis['BIS'])
@@ -272,6 +276,7 @@ def align_bis(path_signal, path_bis):
     n_repeats = np.nan_to_num(t_deltas * fs_eeg, copy=True).astype('int')
     bis_values = np.repeat(bis_values, n_repeats)  # one bis val per sample in eeg
     bis_values = bis_values[:data.data.shape[0]]  # drop post-EEG BIS
+    data.data = data.data[:bis_values.shape[0]]  # drop post-BIS EEG
 
     # cut into windows of variable length
     win_sec = 5
