@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.signal import butter, lfilter, iirnotch
+from wyrm.processing import append as wyrm_append
 from wyrm.types import Data
 
 from prepod.lib.io import read_bis
@@ -39,8 +40,11 @@ def to_feature_vector(data, names=('class', 'amplitude'), units=('#', 'µV')):
     n_samples = data.data.shape[1]
     n_chans = data.data.shape[2]
     dat = data.data.reshape((n_epochs, n_samples*n_chans))
+    fs = data.fs
     ax = [data.axes[0], np.linspace(0, 1, len(data.axes[1])*n_chans)]
-    return Data(data=dat, axes=ax, names=names, units=units)
+    data = Data(data=dat, axes=ax, names=names, units=units)
+    data.fs = fs
+    return data
 
 
 def detect_bads(x, srate, corr_threshold=0.4, window_width=1,
@@ -281,6 +285,7 @@ def align_bis(path_signal, path_bis):
     names = ['epoch', 'time', 'channels']
     units = ['#', 's', 'µV']
     data = Data(data=chunks_data, axes=axes, names=names, units=units)
+    data.fs = fs_eeg
 
     return data, chunks_bis
 
@@ -292,6 +297,40 @@ def append_label(data, label):
         raise TypeError(msg)
     n_epochs = data.data.shape[0]
     data.axes[0] = np.repeat(label, n_epochs)
+
+    return data
+
+
+def merge_subjects(l):
+    """Merges list of `Data` objects to one `Data` object
+
+    Params
+    ------
+        l : list
+            list of `Data` objects to merge
+
+    Returns
+    -------
+        data : `Data` object
+            merged data
+    """
+    if not isinstance(l, list):
+        msg = 'Please provide list of `Data` objects to merge, got {}'.format(
+            str(type(l))
+        )
+        raise TypeError(msg)
+    if not all(isinstance(el, Data) for el in l):
+        msg = 'All objects in list must be of type `wyrm.types.Data`'
+        raise TypeError(msg)
+    if len(l) < 2:
+        msg = 'At least two `Data` objects are needed to merge together.'
+        raise TypeError(msg)
+
+    data = l[0]
+    fs = data.fs
+    for el in l:
+        data = wyrm_append(data, el)
+    data.fs = fs
 
     return data
 
