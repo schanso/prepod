@@ -10,6 +10,7 @@ from wyrm.types import Data
 
 from prepod.lib.constants import (SUPPORTED_FTYPES, SUPPORTED_FORMATS,
                                   SUPPORTED_REGIONS, FORMATS)
+from prepod.lib.helpers import fix_known_errors
 
 
 logging.getLogger('mne').setLevel(logging.ERROR)
@@ -110,6 +111,7 @@ def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True
         else:
             paths = [path_in.strip()]
 
+    subj_id = paths[0].split('/')[-1].split('_')[0]
     raw, raws = None, []
     for idx, path in enumerate(paths):
         if idx == 0:
@@ -162,8 +164,11 @@ def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True
         'n_chans': len(raw.info['ch_names']),
         'time_points': times,
         'markers': [],
-        'starttime': datetime.datetime.strptime(start_time, FORMATS['datetime'])
+        'starttime': datetime.datetime.strptime(start_time, FORMATS['datetime']),
+        'subj_id': subj_id
     }
+
+    d = fix_known_errors(d)
 
     print('Successfully read file(s) ' + ', '.join(paths))
 

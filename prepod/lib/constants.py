@@ -8,6 +8,12 @@ FORMATS = {
     'datetime': '%Y-%m-%d %H:%M:%S.%f'
 }
 
+# Errors
+KNOWN_ERRORS = {
+    '2300': ('new_date = datetime.datetime.strftime(d[\'starttime\'], \'%Y-%d-%m %H:%M:%S.%f\');'
+             + 'd[\'starttime\'] = datetime.datetime.strptime(new_date, FORMATS[\'datetime\'])')
+}
+
 # Sudocu
 COLNAME_SUBJID_SUDOCU = 'case_no'
 COLNAME_TARGET_SUDOCU = 'Nudesc_AWR_60min_Delir_ohne_Missings'
