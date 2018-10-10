@@ -216,6 +216,8 @@ def read_bis(path_in, from_type='bilateral'):
         if not path_in[-1] == '/':
             path_in = path_in + '/'
         fnames = return_fnames(dir_in=path_in, substr='asp')
+        if isinstance(fnames, str):  # to list if only one file
+            fnames = [fnames]
         if len(fnames) == 0:
             msg = 'No files of type `asp` in dir.'
             raise TypeError(msg)
