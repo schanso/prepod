@@ -348,6 +348,8 @@ def import_targets(fpath, colname_subjid, colname_target, subj_ids=None):
     targets.columns = ['case_no', 'target']
     targets['target'] = targets['target'].astype('int')
     if subj_ids:
+        if not isinstance(subj_ids, list):
+            subj_ids = [subj_ids]
         targets = targets[targets['case_no'].isin(subj_ids)]
     return np.array(targets['target'])
 
