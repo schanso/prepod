@@ -239,7 +239,7 @@ def align_bis(path_signal, path_bis):
     if not isinstance(path_signal, str):
         msg = 'Please provide file path as str, got {}'.format(type(path_signal))
         raise TypeError(msg)
-    
+
     data = np.load(file=path_signal).flatten()[0]
     bis = read_bis(path_bis)
     fs_eeg = data.fs
@@ -290,6 +290,10 @@ def align_bis(path_signal, path_bis):
     units = ['#', 's', 'µV']
     data = Data(data=chunks_data, axes=axes, names=names, units=units)
     data.fs = fs_eeg
+
+    print('Successfully aligned {} with BIS values.'.format(
+        path_signal.split('/')[-1]
+    ))
 
     return data, chunks_bis
 
