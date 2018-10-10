@@ -301,13 +301,15 @@ def append_label(data, label):
     return data
 
 
-def merge_subjects(l):
+def merge_subjects(l, path_out=None):
     """Merges list of `Data` objects to one `Data` object
 
     Params
     ------
         l : list
             list of `Data` objects to merge
+        path_out : str
+            if not None, path to store merged data
 
     Returns
     -------
@@ -331,6 +333,10 @@ def merge_subjects(l):
     for el in l:
         data = wyrm_append(data, el)
     data.fs = fs
+
+    if path_out:
+        np.save(path_out, data)
+        print('Successfully wrote merged data to ' + path_out)
 
     return data
 
