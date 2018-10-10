@@ -251,10 +251,16 @@ def align_bis(path_signal, path_bis):
     # drop samples pre-BIS recording
     time_delta = bis_start-eeg_start
     time_delta_s = time_delta.days * 24 * 3600 + time_delta.seconds
-    new_start = int(time_delta_s * fs_eeg)
-    data.data = data.data[new_start:]
+
+    if time_delta_s < 0:  # eeg start after bis start
+        bis = bis.drop(bis[bis['SystemTime'] < eeg_start].index)
+        bis_start = bis['SystemTime'].iloc[0]
+    else:  # bis start after eeg start
+        new_start = int(time_delta_s * fs_eeg)
+        data.data = data.data[new_start:]
 
     # drop samples post-BIS recording
+    bis_values = np.array(bis['BIS'])
     time_delta = bis_end - bis_start
     time_delta_s = time_delta.days * 24 * 3600 + time_delta.seconds
     n_samples = int(time_delta_s * fs_eeg)
@@ -262,7 +268,6 @@ def align_bis(path_signal, path_bis):
     eeg_dur = data.data.shape[0] / fs_eeg
 
     # create array of BIS vals, one per sample in the EEG
-    bis_values = np.array(bis['BIS'])
     t_deltas = np.append(np.delete(np.array(bis['t_delta']), 0), 0)
     n_repeats = np.nan_to_num(t_deltas * fs_eeg, copy=True).astype('int')
     bis_values = np.repeat(bis_values, n_repeats)  # one bis val per sample in eeg
