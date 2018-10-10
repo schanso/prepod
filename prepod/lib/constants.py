@@ -11,6 +11,9 @@ FORMATS = {
 # Errors
 KNOWN_ERRORS = {}
 
+# Exclude subjects
+EXCLUDE_SUBJ = ['2183']
+
 # Sudocu
 COLNAME_SUBJID_SUDOCU = 'case_no'
 COLNAME_TARGET_SUDOCU = 'Nudesc_AWR_60min_Delir_ohne_Missings'
