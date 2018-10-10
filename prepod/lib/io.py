@@ -37,8 +37,8 @@ def return_fnames(dir_in, substr=None, sort_list=True):
 
     Returns
     -------
-        l : list
-            file names in `dir_in` (that optionally contain substr)
+        l : list or str
+            file name(s) in `dir_in` (that optionally contain substr)
     """
     l = [f for f in os.listdir(dir_in)
          if (os.path.isfile(os.path.join(dir_in, f)) and not f.startswith('.'))]
@@ -46,6 +46,8 @@ def return_fnames(dir_in, substr=None, sort_list=True):
         l = [f for f in l if substr in f]
     if sort_list:
         l.sort()
+    if len(l) == 1:
+        l = l[0]
     return l
 
 
