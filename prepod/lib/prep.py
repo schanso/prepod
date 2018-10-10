@@ -5,7 +5,7 @@ from wyrm.types import Data
 from prepod.lib.io import read_bis
 
 
-def feature_vector(data, names=('class', 'amplitude'), units=('#', 'µV')):
+def to_feature_vector(data, names=('class', 'amplitude'), units=('#', 'µV')):
     """Creates a 2D feature vector from 3D `wyrm.Data` object
 
     Epoched data is stored as 3D obj in wyrm (labels, samples, channels),
@@ -30,10 +30,15 @@ def feature_vector(data, names=('class', 'amplitude'), units=('#', 'µV')):
     --------
         :type: wyrm.Data
     """
-    n_subj = data.data.shape[0]
+    if not isinstance(names, list):
+        names = list(names)
+    if not isinstance(units, list):
+        units = list(units)
+
+    n_epochs = data.data.shape[0]
     n_samples = data.data.shape[1]
     n_chans = data.data.shape[2]
-    dat = data.data.reshape((n_subj, n_samples*n_chans))
+    dat = data.data.reshape((n_epochs, n_samples*n_chans))
     ax = [data.axes[0], np.linspace(0, 1, len(data.axes[1])*n_chans)]
     return Data(data=dat, axes=ax, names=names, units=units)
 
@@ -270,17 +275,23 @@ def align_bis(path_signal, path_bis):
     chunks_data = chunks_data[new_idx]
     chunks_bis = chunks_bis[new_idx]
 
-    return chunks_data, chunks_bis
+    # to Data
+    time_points = np.linspace(0, win_sec, win_samples)
+    axes = [np.arange(chunks_data.shape[0]), time_points, data.axes[1]]
+    names = ['epoch', 'time', 'channels']
+    units = ['#', 's', 'µV']
+    data = Data(data=chunks_data, axes=axes, names=names, units=units)
+
+    return data, chunks_bis
 
 
-if __name__ == '__main__':
-    from prepod.lib.io import return_fnames
+def append_label(data, label):
+    """Appends class label to epoched `Data` object"""
+    if not isinstance(data, Data):
+        msg = 'Currently only wyrm.types.Data objects are supported.'
+        raise TypeError(msg)
+    n_epochs = data.data.shape[0]
+    data.axes[0] = np.repeat(label, n_epochs)
 
-    subj_id = '2129'
-    path_data = '/Users/jannes/Projects/delir/data/'
-    dir_signal = path_data + 'rec/sudocu/brainvision/raw/npy/frontal/'
-    path_signal = dir_signal + return_fnames(dir_in=dir_signal, substr=subj_id)[0]
-    path_bis = path_data + 'rec/sudocu/bis/' + subj_id + '/'
-    data, bis = align_bis(path_signal=path_signal, path_bis=path_bis)
-    print(data.shape, bis.shape)
+    return data
 
