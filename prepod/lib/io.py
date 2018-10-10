@@ -278,7 +278,7 @@ def read_bis(path_in, from_type='bilateral'):
         df = pd.concat([df, _df], axis=0)
 
     df['RAppTime'] = df['RAppTime'].astype('int64', copy=True)
-    df['SystemTime'] = pd.to_datetime(df['SystemTime'])
+    df['SystemTime'] = pd.to_datetime(df['SystemTime'], dayfirst=True)
     df.sort_values(by=['SystemTime'], inplace=True)
     df.reset_index(inplace=True, drop=True)
 

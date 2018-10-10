@@ -9,10 +9,7 @@ FORMATS = {
 }
 
 # Errors
-KNOWN_ERRORS = {
-    '2300': ('new_date = datetime.datetime.strftime(d[\'starttime\'], \'%Y-%d-%m %H:%M:%S.%f\');'
-             + 'd[\'starttime\'] = datetime.datetime.strptime(new_date, FORMATS[\'datetime\'])')
-}
+KNOWN_ERRORS = {}
 
 # Sudocu
 COLNAME_SUBJID_SUDOCU = 'case_no'
