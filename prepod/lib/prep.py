@@ -236,6 +236,10 @@ def align_bis(path_signal, path_bis):
     # TODO: Align on ms instead of s?
     # TODO: Drop where time jump in BIS > 1s?
     # TODO: Split into two functions
+    if not isinstance(path_signal, str):
+        msg = 'Please provide file path as str, got {}'.format(type(path_signal))
+        raise TypeError(msg)
+    
     data = np.load(file=path_signal).flatten()[0]
     bis = read_bis(path_bis)
     fs_eeg = data.fs
