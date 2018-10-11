@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC, LinearSVC
 from wyrm.types import Data
 from wyrm.processing import lda_train, lda_apply
 
@@ -154,7 +155,33 @@ def lda_vyrm(data_train, data_test, shrink=False):
     """Trains vyrm's LDA classifier and tests it on `data_test`"""
     clf = lda_train(data_train, shrink=shrink)
     out = lda_apply(data_test, clf)
-    res = (np.sign(out) + 1) / 2
-    acc = (res == data_test.axes[0]).sum() / len(res)
+    pred = (np.sign(out) + 1) / 2
+    acc = (pred == data_test.axes[0]).sum() / len(pred)
     return acc
+
+
+def svm(data_train, data_test, n_samples=None, kernel='linear'):
+    """Trains and tests SVC
+
+    --- IN DEVELOPMENT ---
+    """
+    X, y = data_train.data, data_train.axes[0]
+    X_, y_ = data_test.data, data_test.axes[0]
+
+    if n_samples:
+        if not isinstance(n_samples, int):
+            msg = 'n_samples must be int, got {}'.format(type(n_samples))
+            raise TypeError(msg)
+        X, y = X[:n_samples], y[:n_samples]
+        X_, y_ = X_[:n_samples], y_[:n_samples]
+
+    if kernel == 'linear':
+        clf = LinearSVC()
+    else:
+        clf = SVC(gamma='auto')
+
+    clf.fit(X, y)
+    pred = clf.predict(X_)
+    return np.mean(pred == y_)
+
 
