@@ -348,8 +348,9 @@ def merge_subjects(l, path_out=None):
 
     data = l[0]
     fs = data.fs
-    for el in l:
+    for idx, el in enumerate(l):
         data = wyrm_append(data, el)
+        print('Appended {}/{}'.format(str(idx+1), str(len(l))))
     data.fs = fs
 
     if path_out:
