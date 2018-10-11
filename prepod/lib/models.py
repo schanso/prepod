@@ -135,10 +135,10 @@ def train_test_wyrm(data, test_size):
             msg = ('It seems you have to reshape your data first.\n\n'
                    + str(e))
             raise TypeError(msg)
-    dat = data.data[ind]
-    lbls = data.axes[0][ind]
+    dat = data.data[ind, :]
+    labels = data.axes[0][ind]
     X_train, X_test, y_train, y_test = train_test_split(
-        dat, lbls, test_size=test_size, shuffle=True
+        dat, labels, test_size=test_size, shuffle=True
     )
     ax_train = [y_train, data.axes[1]]
     ax_test = [y_test, data.axes[1]]
