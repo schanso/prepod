@@ -150,10 +150,9 @@ def train_test_wyrm(data, test_size):
     return dat_train, dat_test
 
 
-def lda_vyrm(data_train, data_test):
+def lda_vyrm(data_train, data_test, shrink=False):
     """Trains vyrm's LDA classifier and tests it on `data_test`"""
-    # TODO: Implement shrinkage
-    clf = lda_train(data_train)
+    clf = lda_train(data_train, shrink=shrink)
     out = lda_apply(data_test, clf)
     res = (np.sign(out) + 1) / 2
     acc = (res == data_test.axes[0]).sum() / len(res)
