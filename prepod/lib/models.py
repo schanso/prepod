@@ -3,7 +3,7 @@ from sklearn.model_selection import train_test_split
 from wyrm.types import Data
 from wyrm.processing import lda_train, lda_apply
 
-from prepod.lib.prep import feature_vector
+from prepod.lib.prep import to_feature_vector
 
 
 def encode_one_hot(targets):
@@ -130,7 +130,7 @@ def train_test_wyrm(data, test_size):
     ind = equalize_proportions(labels=labels, n_classes=n_classes)
     if len(data.axes) > 2:
         try:
-            data = feature_vector(data)
+            data = to_feature_vector(data)
         except Exception as e:
             msg = ('It seems you have to reshape your data first.\n\n'
                    + str(e))
