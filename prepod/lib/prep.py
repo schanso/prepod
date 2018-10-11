@@ -235,7 +235,6 @@ def align_bis(path_signal, path_bis):
     """"""
     # TODO: Align on ms instead of s? Align on every BIS value (Time stamp)
     # TODO: Drop where time jump in BIS >> 1s?
-    # TODO: Split into two functions
     # TODO: Find 'drop post-BIS EEG' bug
     if not isinstance(path_signal, str):
         msg = 'Please provide file path as str, got {}'.format(type(path_signal))
@@ -277,10 +276,21 @@ def align_bis(path_signal, path_bis):
     bis_values = np.repeat(bis_values, n_repeats)  # one bis val per sample in eeg
     bis_values = bis_values[:data.data.shape[0]]  # drop post-EEG BIS
     data.data = data.data[:bis_values.shape[0]]  # drop post-BIS EEG
+    data.fs = fs_eeg
+
+    print('Successfully aligned {} with BIS values.'.format(
+        path_signal.split('/')[-1]
+    ))
+
+    return data, bis_values
+
+
+def split_into_wins(data, bis_values, win_length=5, bis_crit=60):
+    """"""
+    fs_eeg = data.fs
 
     # cut into windows of variable length
-    win_sec = 5
-    win_samples = win_sec * fs_eeg
+    win_samples = win_length * fs_eeg
     n_wins = np.floor(data.data.shape[0] / win_samples)
     new_start = int(data.data.shape[0] - (n_wins * win_samples))
     data.data = data.data[new_start:]
@@ -288,22 +298,18 @@ def align_bis(path_signal, path_bis):
     chunks_data = np.array(np.split(data.data, n_wins))
     chunks_bis = np.array(np.split(bis_values, n_wins))
 
-    # only keep windows where BIS <= 60
-    new_idx = np.where(np.all(chunks_bis <= 60, axis=1))
+    # only keep windows where BIS <= bis_crit
+    new_idx = np.where(np.all(chunks_bis <= bis_crit, axis=1))
     chunks_data = chunks_data[new_idx]
     chunks_bis = chunks_bis[new_idx]
 
     # to Data
-    time_points = np.linspace(0, win_sec, win_samples)
+    time_points = np.linspace(0, win_length, win_samples)
     axes = [np.arange(chunks_data.shape[0]), time_points, data.axes[1]]
     names = ['epoch', 'time', 'channels']
     units = ['#', 's', 'µV']
     data = Data(data=chunks_data, axes=axes, names=names, units=units)
     data.fs = fs_eeg
-
-    print('Successfully aligned {} with BIS values.'.format(
-        path_signal.split('/')[-1]
-    ))
 
     return data, chunks_bis
 
