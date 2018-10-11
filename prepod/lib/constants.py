@@ -12,7 +12,7 @@ FORMATS = {
 KNOWN_ERRORS = {}
 
 # Exclude subjects
-EXCLUDE_SUBJ = ['2183']
+EXCLUDE_SUBJ = ['2183', '2482']
 
 # Sudocu
 COLNAME_SUBJID_SUDOCU = 'case_no'
