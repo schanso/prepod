@@ -285,9 +285,44 @@ def align_bis(path_signal, path_bis):
     return data, bis_values
 
 
-def split_into_wins(data, bis_values, win_length=5, bis_crit=60):
-    """"""
+def split_into_wins(data, bis_values, win_length=5, bis_crit=60, keep_proportion=None):
+    """Splits continuous signal into windows of variable length
+
+    Params
+    ------
+        data : `Data`
+            continuous signal
+        bis_values : ndArray
+            data-aligned BIS values
+        win_length : int
+            length of window in seconds
+        bis_crit : int
+            drop window if at least one sample is associated with a BIS
+            value above critical level
+        keep_proportion : float
+            if not None, must be between 0 and 1; indicates the
+            proportion of the data that should be kept, evaluated from
+            the end, i. e. 0.33 -> keep only last third of the data,
+            0.5 -> keep second half
+
+    Returns
+    -------
+        data : `Data`
+            chunked data
+        bis_values : ndArray
+            chuned BIS values
+
+    See also
+    --------
+        :func: align_bis
+    """
     fs_eeg = data.fs
+
+    # keep only proportion of the data (counted from the end)
+    if keep_proportion:
+        n_samples_to_keep = int(np.floor(data.data.shape[0]*keep_proportion))
+        data.data = data.data[-n_samples_to_keep:]
+        bis_values = bis_values[-n_samples_to_keep:]
 
     # cut into windows of variable length
     win_samples = win_length * fs_eeg
@@ -295,6 +330,7 @@ def split_into_wins(data, bis_values, win_length=5, bis_crit=60):
     new_start = int(data.data.shape[0] - (n_wins * win_samples))
     data.data = data.data[new_start:]
     bis_values = bis_values[new_start:]
+
     chunks_data = np.array(np.split(data.data, n_wins))
     chunks_bis = np.array(np.split(bis_values, n_wins))
 
