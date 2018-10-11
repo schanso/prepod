@@ -354,6 +354,7 @@ def merge_subjects(l, path_out=None):
     data.fs = fs
 
     if path_out:
+        print('Saving...')
         np.save(path_out, data)
         print('Successfully wrote merged data to ' + path_out)
 
