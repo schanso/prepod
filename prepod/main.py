@@ -5,7 +5,7 @@ from prepod.lib.constants import (COLNAME_SUBJID_SUDOCU, COLNAME_TARGET_SUDOCU,
                                   EXCLUDE_SUBJ)
 from prepod.lib.models import train_test_wyrm, lda_vyrm, svm
 from prepod.lib.prep import (align_bis, to_feature_vector, append_label,
-                             merge_subjects, split_into_wins)
+                             merge_subjects, split_into_wins, filter_raw)
 
 
 # PATHS
@@ -14,9 +14,11 @@ path_data = '/Users/jannes/Projects/delir/data/'
 path_labels = path_data + 'info/sudocu_info/subject_data.csv'
 path_log = path_data + 'info/log.csv'
 dir_raw = path_data + 'rec/sudocu/brainvision/raw/'
+dir_filtered = path_data + 'rec/sudocu/brainvision/filtered/'
 dir_bis = path_data + 'rec/sudocu/bis/'
-dir_out = dir_raw + 'npy/frontal/'
-dir_signal = dir_out
+dir_out_raw = dir_raw + 'npy/frontal/'
+dir_out_filtered = dir_filtered + 'frontal/'
+dir_signal = dir_out_raw
 
 
 # INFO
@@ -33,18 +35,24 @@ win_length = 5
 bis_crit = 50
 keep_proportion = None
 shrink = False
+l_cutoff, h_cutoff = (8, 13)
 
 
-# PARSE RAW FILES AND STORE AS NPY
-
-for subj_id in subj_ids:
-    path = [dir_raw + el for el in fnames_raw if subj_id in el]
-    parse_raw(path_in=path, dir_out=dir_out, ftype='edf', region='frontal')
+# PARSE RAW FILES, FILTER, STORE AS NPY
+for subj_id in subj_ids[:1]:
+    path_in = [dir_raw + el for el in fnames_raw if subj_id in el]
+    path_out = '{}{}_L{}H{}.npy'.format(
+        *[dir_out_filtered, subj_id, l_cutoff, h_cutoff]
+    )
+    data = parse_raw(path_in=path_in, ftype='edf', region='frontal')
+    filtered = filter_raw(data, srate=data.fs, l_cutoff=l_cutoff, h_cutoff=h_cutoff)
+    np.save(path_out, arr=filtered)
+    print('Successfully wrote data to ' + path_out)
 
 
 # LOAD SUBJ DATA, APPEND LABELS, MERGE
 
-path_out_merged = dir_out + 'merged.npy'
+path_out_merged = dir_out_filtered + 'merged.npy'
 subj_ids_subset = [el for el in subj_ids if int(el) <= 2300]
 datasets = []
 for subj_id in subj_ids_subset:

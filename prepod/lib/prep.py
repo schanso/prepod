@@ -162,7 +162,12 @@ def butter_lowpass(data, h_cutoff, srate, order=5):
     nyq = 0.5 * srate
     normal_cutoff = h_cutoff / nyq
     b, a = butter(order, normal_cutoff, btype='low', analog=False)
-    return lfilter(b, a, data)
+    if isinstance(data, Data):
+        _data = lfilter(b, a, data.data, axis=-2)
+        data = data.copy(data=_data)
+    else:
+        data = lfilter(b, a, data)
+    return data
 
 
 def butter_highpass(data, l_cutoff, srate, order=5):
@@ -187,7 +192,12 @@ def butter_highpass(data, l_cutoff, srate, order=5):
     nyq = 0.5 * srate
     normal_cutoff = l_cutoff / nyq
     b, a = butter(order, normal_cutoff, btype='high', analog=False)
-    return lfilter(b, a, data)
+    if isinstance(data, Data):
+        _data = lfilter(b, a, data.data, axis=-2)
+        data = data.copy(data=_data)
+    else:
+        data = lfilter(b, a, data)
+    return data
 
 
 def filter_raw(raw, srate, h_pass=True, l_pass=True, l_cutoff=1, h_cutoff=100,
