@@ -9,11 +9,14 @@ FORMATS = {
 }
 
 # Plot Styling
+props_keys = ['xlim', 'ylim', 'xticklabels', 'yticklabels', 'xlabel', 'ylabel',
+              'legend']
 PLOT_STYLING = {
     'c': ['#f8766d', '#619cff', '#8da0cb', '#e78ac3', '#ffd92f'],
     'bc': '#f5f5f5',  # background color
     'gc': '#dcdcdc',  # grid line color
-    'plot_styles': {'lw': 1, 'alpha': None}
+    'plot_styles': {'lw': 1, 'alpha': None},
+    'props': {key: None for key in props_keys}
 }
 
 # Errors
