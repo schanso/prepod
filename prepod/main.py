@@ -18,7 +18,7 @@ dir_filtered = path_data + 'rec/sudocu/brainvision/filtered/'
 dir_bis = path_data + 'rec/sudocu/bis/'
 dir_out_raw = dir_raw + 'npy/frontal/'
 dir_out_filtered = dir_filtered + 'frontal/'
-dir_signal = dir_out_raw
+dir_signal = dir_out_filtered
 
 
 # INFO
@@ -35,17 +35,20 @@ win_length = 5
 bis_crit = 50
 keep_proportion = None
 shrink = False
-l_cutoff, h_cutoff = (8, 13)
+l_cutoff, h_cutoff = (4, 8)
 
 
 # PARSE RAW FILES, FILTER, STORE AS NPY
-for subj_id in subj_ids[:1]:
+for subj_id in subj_ids:
     path_in = [dir_raw + el for el in fnames_raw if subj_id in el]
     path_out = '{}{}_L{}H{}.npy'.format(
         *[dir_out_filtered, subj_id, l_cutoff, h_cutoff]
     )
     data = parse_raw(path_in=path_in, ftype='edf', region='frontal')
-    filtered = filter_raw(data, srate=data.fs, l_cutoff=l_cutoff, h_cutoff=h_cutoff)
+    filtered = filter_raw(data,
+                          srate=data.fs,
+                          l_cutoff=l_cutoff,
+                          h_cutoff=h_cutoff)
     np.save(path_out, arr=filtered)
     print('Successfully wrote data to ' + path_out)
 
