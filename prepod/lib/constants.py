@@ -27,7 +27,7 @@ EXCLUDE_SUBJ = ['2183', '2482']
 
 # Sudocu
 COLNAME_SUBJID_SUDOCU = 'case_no'
-COLNAME_TARGET_SUDOCU = 'Nudesc_AWR_60min_Delir_ohne_Missings'
+COLNAME_TARGET_SUDOCU = 'Nudesc_OP_Tag_Delir'  # 'Nudesc_AWR_60min_Delir_ohne_Missings'
 
 # Biocog
 COLNAME_SUBJID_BIOCOG = 'BIC_ID'
