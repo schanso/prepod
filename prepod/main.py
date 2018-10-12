@@ -33,16 +33,18 @@ subj_ids = [el for el in subj_ids if el not in EXCLUDE_SUBJ]
 test_size = .5
 win_length = 5
 bis_crit = 50
-keep_proportion = None
+keep_proportion = 0.5
 shrink = False
-l_cutoff, h_cutoff = (4, 8)
+l_cutoff, h_cutoff = (8, 13)
 
 
 # PARSE RAW FILES, FILTER, STORE AS NPY
+
+subj_ids_subset = ['2153', '2170', '2291', '2324']
 for subj_id in subj_ids:
     path_in = [dir_raw + el for el in fnames_raw if subj_id in el]
-    path_out = '{}{}_L{}H{}.npy'.format(
-        *[dir_out_filtered, subj_id, l_cutoff, h_cutoff]
+    path_out = '{}{}_L{}H{}K{}.npy'.format(
+        *[dir_out_filtered, subj_id, l_cutoff, h_cutoff, keep_proportion]
     )
     data = parse_raw(path_in=path_in, ftype='edf', region='frontal')
     filtered = filter_raw(data,
@@ -56,12 +58,11 @@ for subj_id in subj_ids:
 # LOAD SUBJ DATA, APPEND LABELS, MERGE
 
 path_out_merged = dir_out_filtered + 'merged.npy'
-subj_ids_subset = [el for el in subj_ids if int(el) <= 2300]
 datasets = []
 for subj_id in subj_ids_subset:
     path_signal = dir_signal + return_fnames(
         dir_in=dir_signal, substr=subj_id
-    )
+    )[0]
     path_bis = dir_bis + subj_id + '/'
     data, bis = align_bis(path_signal=path_signal, path_bis=path_bis)
     data, bis = split_into_wins(
