@@ -4,7 +4,7 @@ from prepod.lib.io import return_fnames, parse_raw, import_targets
 from prepod.lib.constants import (COLNAME_SUBJID_SUDOCU, COLNAME_TARGET_SUDOCU,
                                   EXCLUDE_SUBJ)
 import prepod.lib.constants as const
-from prepod.lib.models import train_test_wyrm, lda_vyrm, svm, train_test_cv
+from prepod.lib.models import train_test_wyrm, lda_vyrm, svm, train_test_cv, lda
 from prepod.lib.prep import (align_bis, to_feature_vector, append_label, append_subj_id,
                              merge_subjects, split_into_wins, filter_raw, subset_data)
 
@@ -37,7 +37,8 @@ win_length = 5
 bis_crit = 60
 drop_perc = None
 drop_from = 'beginning'
-shrink = True
+solver = 'svd'
+shrink = False
 
 
 # PARSE RAW FILES, FILTER, STORE AS NPY
@@ -46,16 +47,16 @@ dir_out_raw = '{}/{}/{}'.format(dir_raw, 'npy', region)
 dir_out_filtered = dir_filtered + region
 dir_signal = '{}/{}'.format(dir_out_filtered, freq_band)
 
-# for subj_id in subj_ids:
-#     path_in = [dir_raw + '/' + el for el in fnames_raw if subj_id in el]
-#     path_out = '{}/{}/{}.npy'.format(dir_out_filtered, freq_band, subj_id)
-#     data = parse_raw(path_in=path_in, ftype='edf', region=region)
-#     filtered = filter_raw(data,
-#                           srate=data.fs,
-#                           l_cutoff=l_cutoff,
-#                           h_cutoff=h_cutoff)
-#     np.save(path_out, arr=filtered)
-#     print('Successfully wrote data to ' + path_out)
+for subj_id in subj_ids:
+    path_in = [dir_raw + '/' + el for el in fnames_raw if subj_id in el]
+    path_out = '{}/{}/{}.npy'.format(dir_out_filtered, freq_band, subj_id)
+    data = parse_raw(path_in=path_in, ftype='edf', region=region)
+    filtered = filter_raw(data,
+                          srate=data.fs,
+                          l_cutoff=l_cutoff,
+                          h_cutoff=h_cutoff)
+    np.save(path_out, arr=filtered)
+    print('Successfully wrote data to ' + path_out)
 
 
 # LOAD SUBJ DATA, APPEND LABELS, MERGE
@@ -65,27 +66,27 @@ path_out_merged = '{}/{}'.format(dir_signal, fname_merged)
 
 datasets = []
 subj_ids = ['2153', '2170', '2196', '2211', '2291', '2324', '2430', '2438']
-# for subj_id in subj_ids:
-#     curr_fname = return_fnames(dir_in=dir_signal, substr=subj_id)
-#     path_signal = '{}/{}'.format(dir_signal, return_fnames(dir_in=dir_signal, substr=subj_id))
-#     path_bis = dir_bis + subj_id + '/'
-#     data, bis = align_bis(path_signal=path_signal, path_bis=path_bis)
-#     data = split_into_wins(
-#         data=data,
-#         bis_values=bis,
-#         win_length=win_length
-#     )
-#     label = import_targets(
-#         fpath=path_labels,
-#         colname_subjid=COLNAME_SUBJID_SUDOCU,
-#         colname_target=COLNAME_TARGET_SUDOCU,
-#         subj_ids=subj_id
-#     )
-#     data = to_feature_vector(data)
-#     data = append_label(data, label)
-#     data = append_subj_id(data, subj_id)
-#     datasets.append(data)
-# merge_subjects(datasets, path_out=path_out_merged)
+for subj_id in subj_ids:
+    curr_fname = return_fnames(dir_in=dir_signal, substr=subj_id)
+    path_signal = '{}/{}'.format(dir_signal, return_fnames(dir_in=dir_signal, substr=subj_id))
+    path_bis = dir_bis + subj_id + '/'
+    data, bis = align_bis(path_signal=path_signal, path_bis=path_bis)
+    data = split_into_wins(
+        data=data,
+        bis_values=bis,
+        win_length=win_length
+    )
+    label = import_targets(
+        fpath=path_labels,
+        colname_subjid=COLNAME_SUBJID_SUDOCU,
+        colname_target=COLNAME_TARGET_SUDOCU,
+        subj_ids=subj_id
+    )
+    data = to_feature_vector(data)
+    data = append_label(data, label)
+    data = append_subj_id(data, subj_id)
+    datasets.append(data)
+merge_subjects(datasets, path_out=path_out_merged)
 
 
 # CLASSIFICATION (VANILLA LDA + SVM)
@@ -95,7 +96,7 @@ data = subset_data(data, bis_crit=bis_crit, drop_perc=drop_perc, drop_from=drop_
 tot = {'lda': [], 'svm': []}
 for i in range(len(subj_ids)):
     data_train, data_test = train_test_cv(data, counter=i)
-    acc_lda = lda_vyrm(data_train=data_train, data_test=data_test, shrink=shrink)
+    acc_lda = lda(data_train=data_train, data_test=data_test, solver=solver, shrinkage=shrink)
     acc_svm = svm(data_train, data_test, kernel='linear')
 
     tot['lda'].append(acc_lda)

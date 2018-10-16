@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.svm import SVC, LinearSVC
 from wyrm.types import Data
 from wyrm.processing import lda_train, lda_apply
@@ -186,6 +187,23 @@ def lda_vyrm(data_train, data_test, shrink=False):
     pred = (np.sign(out) + 1) / 2
     acc = (pred == data_test.axes[0]).sum() / len(pred)
     return acc
+
+
+def lda(data_train, data_test, solver='lsqr', shrinkage=True):
+    """Trains and test LDA classifier"""
+    if solver not in ['svd', 'lsqr', 'eigen']:
+        msg = 'Solver must be one of \'svd\', \'lsqr\', \'eigen\'.'
+        raise ValueError(msg)
+    if solver == 'svd' and shrinkage == True:
+        msg = 'Shrinkage can only be used with \'lsqr\' and \'eigen\' solvers.'
+        raise ValueError(msg)
+
+    X, y = data_train.data, data_train.axes[0]
+    X_, y_ = data_test.data, data_test.axes[0]
+    clf = LDA(solver=solver)
+    clf.fit(X, y)
+    pred = clf.predict(X_)
+    return np.mean(pred == y_)
 
 
 def svm(data_train, data_test, n_samples=None, kernel='linear'):
