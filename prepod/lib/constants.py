@@ -8,6 +8,15 @@ FORMATS = {
     'datetime': '%Y-%m-%d %H:%M:%S.%f'
 }
 
+# Frequency bands
+FREQ_BANDS = {
+    'delta': (.1, 3.99),
+    'theta': (4, 7.99),
+    'alpha': (8, 12.99),
+    'beta': (13, 29.99),
+    'gamma': (30, 64)  # upper limit 64 because srate is 128
+}
+
 # Plot Styling
 props_keys = ['xlim', 'ylim', 'xticklabels', 'yticklabels', 'xlabel', 'ylabel',
               'legend']
