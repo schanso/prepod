@@ -451,9 +451,11 @@ def merge_subjects(l, path_out=None):
 
 def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning'):
     """"""
+    # TODO: Implement drop
     chunks_data = data.data
     chunks_bis = data.bis
     axes = data.axes
+    subj_ids = data.subj_ids
 
     # only keep windows where BIS <= bis_crit
     if bis_crit:
@@ -461,24 +463,27 @@ def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning'):
         chunks_data = chunks_data[new_idx]
         chunks_bis = chunks_bis[new_idx]
         axes[0] = axes[0][new_idx]
+        subj_ids = subj_ids[new_idx]
 
-    # keep only proportion of the data (counted from the drop_from)
-    if drop_perc:
-        n_samples_to_drop = int(np.floor(chunks_data.shape[0] * drop_perc))
-        if drop_from not in ['beginning', 'end']:
-            msg = 'drop_from must be one of \'beginning\', \'end\'.'
-            raise ValueError(msg)
-        if drop_from == 'beginning':
-            chunks_data = chunks_data[n_samples_to_drop:,:]
-            chunks_bis = chunks_bis[n_samples_to_drop:,:]
-            axes[0] = axes[0][n_samples_to_drop:]
-        else:
-            chunks_data = chunks_data[:-n_samples_to_drop, :]
-            chunks_bis = chunks_bis[:-n_samples_to_drop, :]
-            axes[0] = axes[0][:-n_samples_to_drop]
+    # keep only proportion of the data (counted from drop_from)
+    # if drop_perc:
+    #     n_samples_to_drop = int(np.floor(chunks_data.shape[0] * drop_perc))
+    #     if drop_from not in ['beginning', 'end']:
+    #         msg = 'drop_from must be one of \'beginning\', \'end\'.'
+    #         raise ValueError(msg)
+    #     if drop_from == 'beginning':
+    #         chunks_data = chunks_data[n_samples_to_drop:,:]
+    #         chunks_bis = chunks_bis[n_samples_to_drop:,:]
+    #         axes[0] = axes[0][n_samples_to_drop:]
+    #         subj_ids = subj_ids[n_samples_to_drop:]
+    #     else:
+    #         chunks_data = chunks_data[:-n_samples_to_drop, :]
+    #         chunks_bis = chunks_bis[:-n_samples_to_drop, :]
+    #         axes[0] = axes[0][:-n_samples_to_drop]
 
     data.data = chunks_data
     data.axes = axes
     data.bis = chunks_bis
+    data.subj_ids = subj_ids
 
     return data
