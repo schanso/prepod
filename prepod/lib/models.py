@@ -161,6 +161,13 @@ def train_test_cv(data, counter=0):
     X_test = data.data[idx_test, :].squeeze()
     y_train = data.axes[0][idx_train]
     y_test = data.axes[0][idx_test]
+
+    # Equalize proportions in training data
+    n_classes = len(np.unique(y_train))
+    idx_equalized = equalize_proportions(labels=y_train, n_classes=n_classes)
+    X_train = X_train[idx_equalized, :].squeeze()
+    y_train = y_train[idx_equalized]
+
     ax_train = [y_train, data.axes[1]]
     ax_test = [y_test, data.axes[1]]
     names = data.names
