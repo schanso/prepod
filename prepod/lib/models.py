@@ -151,6 +151,27 @@ def train_test_wyrm(data, test_size):
     return dat_train, dat_test
 
 
+def train_test_cv(data, counter=0):
+    """"""
+    unique_subj = np.unique(data.subj_ids)
+    leave_out_subj = unique_subj[counter]
+    idx_train = np.where(data.subj_ids != leave_out_subj)
+    idx_test = np.where(data.subj_ids == leave_out_subj)
+    X_train = data.data[idx_train, :].squeeze()
+    X_test = data.data[idx_test, :].squeeze()
+    y_train = data.axes[0][idx_train]
+    y_test = data.axes[0][idx_test]
+    ax_train = [y_train, data.axes[1]]
+    ax_test = [y_test, data.axes[1]]
+    names = data.names
+    units = data.units
+    dat_train = Data(data=X_train, axes=ax_train, names=names, units=units)
+    dat_test = Data(data=X_test, axes=ax_test, names=names, units=units)
+
+    return dat_train, dat_test
+
+
+
 def lda_vyrm(data_train, data_test, shrink=False):
     """Trains vyrm's LDA classifier and tests it on `data_test`"""
     clf = lda_train(data_train, shrink=shrink)
