@@ -1,9 +1,12 @@
+import pickle
+import sys
+
 import numpy as np
 from scipy.signal import butter, lfilter, iirnotch
 from wyrm.processing import append as wyrm_append
 from wyrm.types import Data
 
-from prepod.lib.io import read_bis
+from prepod.lib.io import read_bis, save_as_pickled
 
 
 def to_feature_vector(data, names=('class', 'amplitude'), units=('#', 'µV')):
@@ -39,11 +42,18 @@ def to_feature_vector(data, names=('class', 'amplitude'), units=('#', 'µV')):
     n_epochs = data.data.shape[0]
     n_samples = data.data.shape[1]
     n_chans = data.data.shape[2]
-    dat = data.data.reshape((n_epochs, n_samples*n_chans))
+    ax = [data.axes[0], np.linspace(0, 1, len(data.axes[1]) * n_chans)]
     fs = data.fs
-    ax = [data.axes[0], np.linspace(0, 1, len(data.axes[1])*n_chans)]
+    try:
+        bis = data.bis
+    except AttributeError:
+        bis = None
+
+    dat = data.data.reshape((n_epochs, n_samples * n_chans))
     data = Data(data=dat, axes=ax, names=names, units=units)
     data.fs = fs
+    data.bis = bis
+
     return data
 
 
@@ -295,7 +305,7 @@ def align_bis(path_signal, path_bis):
     return data, bis_values
 
 
-def split_into_wins(data, bis_values, win_length=5, bis_crit=60, keep_proportion=None):
+def split_into_wins(data, bis_values, win_length=5, bis_crit=None, keep_proportion=None):
     """Splits continuous signal into windows of variable length
 
     Params
@@ -345,9 +355,10 @@ def split_into_wins(data, bis_values, win_length=5, bis_crit=60, keep_proportion
     chunks_bis = np.array(np.split(bis_values, n_wins))
 
     # only keep windows where BIS <= bis_crit
-    new_idx = np.where(np.all(chunks_bis <= bis_crit, axis=1))
-    chunks_data = chunks_data[new_idx]
-    chunks_bis = chunks_bis[new_idx]
+    if bis_crit:
+        new_idx = np.where(np.all(chunks_bis <= bis_crit, axis=1))
+        chunks_data = chunks_data[new_idx]
+        chunks_bis = chunks_bis[new_idx]
 
     # to Data
     time_points = np.linspace(0, win_length, win_samples)
@@ -356,14 +367,15 @@ def split_into_wins(data, bis_values, win_length=5, bis_crit=60, keep_proportion
     units = ['#', 's', 'µV']
     data = Data(data=chunks_data, axes=axes, names=names, units=units)
     data.fs = fs_eeg
+    data.bis = chunks_bis
 
-    return data, chunks_bis
+    return data
 
 
 def append_label(data, label):
     """Appends class label to epoched `Data` object"""
     if not isinstance(data, Data):
-        msg = 'Currently only wyrm.types.Data objects are supported.'
+        msg = 'Only wyrm.types.Data objects are supported.'
         raise TypeError(msg)
     n_epochs = data.data.shape[0]
     data.axes[0] = np.repeat(label, n_epochs)
@@ -398,17 +410,62 @@ def merge_subjects(l, path_out=None):
         msg = 'At least two `Data` objects are needed to merge together.'
         raise TypeError(msg)
 
-    data = l[0]
-    fs = data.fs
+
+    n_channels = int(l[0].data.shape[1]/l[0].bis.shape[1])
+    samples_per_epoch = l[0].bis.shape[1]
+
+    bis = np.empty(shape=(0, samples_per_epoch), dtype='float64')
     for idx, el in enumerate(l):
-        data = wyrm_append(data, el)
+        if idx == 0:
+            data = el
+            fs = data.fs
+        else:
+            data = wyrm_append(data, el)
+        bis = np.concatenate((bis, el.bis))
         print('Appended {}/{}'.format(str(idx+1), str(len(l))))
+
+    # Add fs and bis to merged Data object
     data.fs = fs
+    data.bis = np.tile(bis, (1, n_channels))  # repeat bis for all five channels
 
     if path_out:
         print('Saving...')
-        np.save(path_out, data)
+        np.save(path_out, arr=data)
         print('Successfully wrote merged data to ' + path_out)
 
     return data
 
+
+def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning'):
+    """"""
+    chunks_data = data.data
+    chunks_bis = data.bis
+    axes = data.axes
+
+    # only keep windows where BIS <= bis_crit
+    if bis_crit:
+        new_idx = np.where(np.all(chunks_bis <= bis_crit, axis=1))
+        chunks_data = chunks_data[new_idx]
+        chunks_bis = chunks_bis[new_idx]
+        axes[0] = axes[0][new_idx]
+
+    # keep only proportion of the data (counted from the drop_from)
+    if drop_perc:
+        n_samples_to_drop = int(np.floor(chunks_data.shape[0] * drop_perc))
+        if drop_from not in ['beginning', 'end']:
+            msg = 'drop_from must be one of \'beginning\', \'end\'.'
+            raise ValueError(msg)
+        if drop_from == 'beginning':
+            chunks_data = chunks_data[n_samples_to_drop:,:]
+            chunks_bis = chunks_bis[n_samples_to_drop:,:]
+            axes[0] = axes[0][n_samples_to_drop:]
+        else:
+            chunks_data = chunks_data[:-n_samples_to_drop, :]
+            chunks_bis = chunks_bis[:-n_samples_to_drop, :]
+            axes[0] = axes[0][:-n_samples_to_drop]
+
+    data.data = chunks_data
+    data.axes = axes
+    data.bis = chunks_bis
+
+    return data
