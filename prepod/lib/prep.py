@@ -354,6 +354,11 @@ def split_into_wins(data, bis_values, win_length=5, bis_crit=None, keep_proporti
     chunks_data = np.array(np.split(data.data, n_wins))
     chunks_bis = np.array(np.split(bis_values, n_wins))
 
+    # drop windows with at least one NA BIS value
+    new_idx = np.where(np.all(~np.isnan(chunks_bis), axis=1))
+    chunks_data = chunks_data[new_idx]
+    chunks_bis = chunks_bis[new_idx]
+
     # only keep windows where BIS <= bis_crit
     if bis_crit:
         new_idx = np.where(np.all(chunks_bis <= bis_crit, axis=1))
@@ -392,6 +397,7 @@ def append_subj_id(data, subj_id):
     data.subj_id = np.repeat(subj_id, n_epochs)
 
     return data
+
 
 def merge_subjects(l, path_out=None):
     """Merges list of `Data` objects to one `Data` object
