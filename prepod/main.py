@@ -34,8 +34,8 @@ l_cutoff, h_cutoff = const.FREQ_BANDS[freq_band]
 
 test_size = .5
 win_length = 5
-bis_crit = 60
-drop_perc = None
+bis_crit = 50
+drop_perc = .5
 drop_from = 'beginning'
 solver = 'svd'
 shrink = False
@@ -65,7 +65,7 @@ fname_merged = 'complete.npy'
 path_out_merged = '{}/{}'.format(dir_signal, fname_merged)
 
 datasets = []
-subj_ids = ['2153', '2170', '2196', '2211', '2291', '2324', '2430', '2438']
+subj_ids = [el for el in subj_ids if int(el) <= 2328]
 for subj_id in subj_ids:
     curr_fname = return_fnames(dir_in=dir_signal, substr=subj_id)
     path_signal = '{}/{}'.format(dir_signal, return_fnames(dir_in=dir_signal, substr=subj_id))

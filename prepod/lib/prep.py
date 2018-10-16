@@ -457,7 +457,6 @@ def merge_subjects(l, path_out=None):
 
 def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning'):
     """"""
-    # TODO: Implement drop
     chunks_data = data.data
     chunks_bis = data.bis
     axes = data.axes
@@ -472,20 +471,39 @@ def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning'):
         subj_ids = subj_ids[new_idx]
 
     # keep only proportion of the data (counted from drop_from)
-    # if drop_perc:
-    #     n_samples_to_drop = int(np.floor(chunks_data.shape[0] * drop_perc))
-    #     if drop_from not in ['beginning', 'end']:
-    #         msg = 'drop_from must be one of \'beginning\', \'end\'.'
-    #         raise ValueError(msg)
-    #     if drop_from == 'beginning':
-    #         chunks_data = chunks_data[n_samples_to_drop:,:]
-    #         chunks_bis = chunks_bis[n_samples_to_drop:,:]
-    #         axes[0] = axes[0][n_samples_to_drop:]
-    #         subj_ids = subj_ids[n_samples_to_drop:]
-    #     else:
-    #         chunks_data = chunks_data[:-n_samples_to_drop, :]
-    #         chunks_bis = chunks_bis[:-n_samples_to_drop, :]
-    #         axes[0] = axes[0][:-n_samples_to_drop]
+    # TODO: Looks ugly
+    if drop_perc:
+        if drop_from not in ['beginning', 'end']:
+            msg = 'drop_from must be one of \'beginning\', \'end\'.'
+            raise ValueError(msg)
+
+        _data = np.empty(shape=(0, chunks_data.shape[1]), dtype='float64')
+        _bis = np.empty(shape=(0, chunks_bis.shape[1]), dtype='float64')
+        _axes = np.empty(shape=(0,), dtype='int64')
+        _subj_ids = np.empty(shape=(0,), dtype='<U4')
+        for subj_id in np.unique(subj_ids):
+            idx_subj = np.where(subj_ids == subj_id)
+            data_subset = chunks_data[idx_subj, :].squeeze()
+            bis_subset = chunks_bis[idx_subj, :].squeeze()
+            axes_subset = axes[0][idx_subj]
+            n_samples_to_drop = int(np.floor(data_subset.shape[0] * drop_perc))
+            subj_ids_subset = subj_ids[idx_subj]
+
+            if drop_from == 'beginning':
+                _data = np.concatenate((_data, data_subset[n_samples_to_drop:,:].squeeze()))
+                _bis = np.concatenate((_bis, bis_subset[n_samples_to_drop:,:].squeeze()))
+                _axes = np.concatenate((_axes, axes_subset[n_samples_to_drop:]))
+                _subj_ids = np.concatenate((_subj_ids, subj_ids_subset[n_samples_to_drop:]))
+            else:
+                _data = np.concatenate((_data, data_subset[:-n_samples_to_drop, :].squeeze()))
+                _bis = np.concatenate((_bis, bis_subset[:-n_samples_to_drop, :].squeeze()))
+                _axes = np.concatenate((_axes, axes_subset[:-n_samples_to_drop]))
+                _subj_ids = np.concatenate((_subj_ids, subj_ids_subset[:-n_samples_to_drop]))
+
+        chunks_data = _data
+        axes[0] = _axes
+        chunks_bis = _bis
+        subj_ids = _subj_ids
 
     data.data = chunks_data
     data.axes = axes
@@ -493,3 +511,4 @@ def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning'):
     data.subj_ids = subj_ids
 
     return data
+
