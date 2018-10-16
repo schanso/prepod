@@ -5,7 +5,7 @@ from prepod.lib.constants import (COLNAME_SUBJID_SUDOCU, COLNAME_TARGET_SUDOCU,
                                   EXCLUDE_SUBJ)
 import prepod.lib.constants as const
 from prepod.lib.models import train_test_wyrm, lda_vyrm, svm
-from prepod.lib.prep import (align_bis, to_feature_vector, append_label,
+from prepod.lib.prep import (align_bis, to_feature_vector, append_label, append_subj_id,
                              merge_subjects, split_into_wins, filter_raw, subset_data)
 
 
@@ -62,8 +62,9 @@ for subj_id in subj_ids:
 
 fname_merged = 'complete.npy'
 path_out_merged = '{}/{}'.format(dir_signal, fname_merged)
+
 datasets = []
-# subj_ids = ['2153', '2170', '2196', '2211', '2291', '2324', '2430', '2438']
+subj_ids = ['2153', '2170', '2196', '2211', '2291', '2324', '2430', '2438']
 for subj_id in subj_ids:
     curr_fname = return_fnames(dir_in=dir_signal, substr=subj_id)
     path_signal = '{}/{}'.format(dir_signal, return_fnames(dir_in=dir_signal, substr=subj_id))
@@ -82,6 +83,7 @@ for subj_id in subj_ids:
     )
     data = to_feature_vector(data)
     data = append_label(data, label)
+    data = append_subj_id(data, subj_id)
     datasets.append(data)
 merge_subjects(datasets, path_out=path_out_merged)
 
@@ -89,7 +91,8 @@ merge_subjects(datasets, path_out=path_out_merged)
 # CLASSIFICATION (VANILLA LDA + SVM)
 
 data = np.load(file=path_out_merged).flatten()[0]
-subset_data(data, bis_crit=bis_crit, drop_perc=drop_perc, drop_from=drop_from)
+data = subset_data(data, bis_crit=bis_crit, drop_perc=drop_perc, drop_from=drop_from)
+
 tot = {'lda': [], 'svm': []}
 for i in range(10):
     data_train, data_test = train_test_wyrm(data, test_size=test_size)

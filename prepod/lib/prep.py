@@ -383,6 +383,16 @@ def append_label(data, label):
     return data
 
 
+def append_subj_id(data, subj_id):
+    """Appends subj_id to epoched `Data` object"""
+    if not isinstance(data, Data):
+        msg = 'Only wyrm.types.Data objects are supported.'
+        raise TypeError(msg)
+    n_epochs = data.data.shape[0]
+    data.subj_id = np.repeat(subj_id, n_epochs)
+
+    return data
+
 def merge_subjects(l, path_out=None):
     """Merges list of `Data` objects to one `Data` object
 
@@ -415,6 +425,7 @@ def merge_subjects(l, path_out=None):
     samples_per_epoch = l[0].bis.shape[1]
 
     bis = np.empty(shape=(0, samples_per_epoch), dtype='float64')
+    subj_ids = np.empty(shape=(0,), dtype='<U4')
     for idx, el in enumerate(l):
         if idx == 0:
             data = el
@@ -422,11 +433,13 @@ def merge_subjects(l, path_out=None):
         else:
             data = wyrm_append(data, el)
         bis = np.concatenate((bis, el.bis))
+        subj_ids = np.concatenate((subj_ids, el.subj_id))
         print('Appended {}/{}'.format(str(idx+1), str(len(l))))
 
     # Add fs and bis to merged Data object
     data.fs = fs
     data.bis = np.tile(bis, (1, n_channels))  # repeat bis for all five channels
+    data.subj_ids = subj_ids
 
     if path_out:
         print('Saving...')
