@@ -1,7 +1,9 @@
 import datetime
 import logging
 import os
+import pickle
 import re
+import sys
 
 import mne
 import numpy as np
@@ -397,4 +399,14 @@ def append_labels(data, labels):
         dataset.units.insert(0, '#')
         updated_data.append(dataset)
     return updated_data
+
+
+def save_as_pickled(data, path_out):
+    """"""
+    max_bytes = 2 ** 31 - 1
+    bytes_out = pickle.dumps(data)
+    n_bytes = sys.getsizeof(bytes_out)
+    with open(path_out, 'wb') as f_out:
+        for idx in range(0, n_bytes, max_bytes):
+            f_out.write(bytes_out[idx:idx + max_bytes])
 
