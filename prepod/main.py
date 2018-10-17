@@ -1,33 +1,19 @@
 import numpy as np
+from wyrm.processing import create_feature_vectors
 
+import prepod.lib.prep as prep
 from prepod.lib.io import return_fnames, parse_raw, import_targets
 from prepod.lib.constants import (COLNAME_SUBJID_SUDOCU, COLNAME_TARGET_SUDOCU,
                                   EXCLUDE_SUBJ)
 import prepod.lib.constants as const
 from prepod.lib.models import train_test_wyrm, lda_vyrm, svm, train_test_cv, lda
-from prepod.lib.prep import (align_bis, to_feature_vector, append_label, append_subj_id,
-                             merge_subjects, split_into_wins, filter_raw, subset_data)
-
-
-# PATHS
-
-path_data = '/Users/jannes/Projects/delir/data/'
-path_labels = path_data + 'info/sudocu_info/subject_data.csv'
-path_log = path_data + 'info/log.csv'
-dir_raw = path_data + 'rec/sudocu/brainvision/raw'
-dir_filtered = path_data + 'rec/sudocu/brainvision/filtered/'
-dir_bis = path_data + 'rec/sudocu/bis/'
-
-
-# INFO
-
-fnames_raw = return_fnames(dir_in=dir_raw)
-subj_ids = sorted(list(set([el.split('_')[0] for el in fnames_raw])))
-subj_ids = [el for el in subj_ids if el not in EXCLUDE_SUBJ]
-
+from prepod.lib.prep import (align_bis, to_feature_vector, append_subj_id,
+                             merge_subjects, split_into_wins, filter_raw, subset_data,
+                             calc_csp)
 
 # PARAMS
 
+study = 'Sudocu'
 region = 'frontal'
 freq_band = 'alpha'
 l_cutoff, h_cutoff = const.FREQ_BANDS[freq_band]
@@ -41,11 +27,30 @@ solver = 'svd'
 shrink = False
 
 
-# PARSE RAW FILES, FILTER, STORE AS NPY
+# PATHS
 
+path_data = '/Users/jannes/Projects/delir/data/'
+path_labels = path_data + 'info/sudocu_info/subject_data.csv'
+path_log = path_data + 'info/log.csv'
+dir_raw = path_data + 'rec/sudocu/brainvision/raw'
+dir_filtered = path_data + 'rec/sudocu/brainvision/filtered/'
+dir_bis = path_data + 'rec/sudocu/bis/'
 dir_out_raw = '{}/{}/{}'.format(dir_raw, 'npy', region)
 dir_out_filtered = dir_filtered + region
 dir_signal = '{}/{}'.format(dir_out_filtered, freq_band)
+fname_merged = 'complete.npy'
+path_out_merged = '{}/{}'.format(dir_signal, fname_merged)
+
+
+# INFO
+
+fnames_raw = return_fnames(dir_in=dir_raw)
+subj_ids = sorted(list(set([el.split('_')[0] for el in fnames_raw])))
+subj_ids = [el for el in subj_ids if el not in EXCLUDE_SUBJ]
+subj_ids = [el for el in subj_ids if int(el) <= 2262]
+
+
+# PARSE RAW FILES, FILTER, STORE AS NPY
 
 for subj_id in subj_ids:
     path_in = [dir_raw + '/' + el for el in fnames_raw if subj_id in el]
@@ -59,32 +64,19 @@ for subj_id in subj_ids:
     print('Successfully wrote data to ' + path_out)
 
 
-# LOAD SUBJ DATA, APPEND LABELS, MERGE
-
-fname_merged = 'complete.npy'
-path_out_merged = '{}/{}'.format(dir_signal, fname_merged)
+# # LOAD SUBJ DATA, APPEND LABELS, MERGE
 
 datasets = []
-subj_ids = [el for el in subj_ids if int(el) <= 2328]
 for subj_id in subj_ids:
     curr_fname = return_fnames(dir_in=dir_signal, substr=subj_id)
     path_signal = '{}/{}'.format(dir_signal, return_fnames(dir_in=dir_signal, substr=subj_id))
     path_bis = dir_bis + subj_id + '/'
-    data, bis = align_bis(path_signal=path_signal, path_bis=path_bis)
-    data = split_into_wins(
-        data=data,
-        bis_values=bis,
-        win_length=win_length
-    )
-    label = import_targets(
-        fpath=path_labels,
-        colname_subjid=COLNAME_SUBJID_SUDOCU,
-        colname_target=COLNAME_TARGET_SUDOCU,
-        subj_ids=subj_id
-    )
-    data = to_feature_vector(data)
-    data = append_label(data, label)
-    data = append_subj_id(data, subj_id)
+    data = np.load(file=path_signal).flatten()[0]
+    data.markers = prep.create_markers(data, win_length)
+    data.label = prep.fetch_labels(path_labels, study, subj_id)
+    data = prep.match_bis(data, path_bis)
+    data = prep.segment_data(data, win_length)
+    data.subj_id = prep.append_subj_id(data, subj_id)
     datasets.append(data)
 merge_subjects(datasets, path_out=path_out_merged)
 
@@ -92,7 +84,9 @@ merge_subjects(datasets, path_out=path_out_merged)
 # CLASSIFICATION (VANILLA LDA + SVM)
 
 data = np.load(file=path_out_merged).flatten()[0]
-data = subset_data(data, bis_crit=bis_crit, drop_perc=drop_perc, drop_from=drop_from)
+print('Done loading')
+data = subset_data(data, bis_crit=bis_crit, drop_perc=drop_perc, drop_from='end')
+data = create_feature_vectors(data)
 tot = {'lda': [], 'svm': []}
 for i in range(len(subj_ids)):
     data_train, data_test = train_test_cv(data, counter=i)

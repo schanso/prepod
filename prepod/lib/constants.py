@@ -42,3 +42,14 @@ COLNAME_TARGET_SUDOCU = 'Nudesc_AWR_60min_Delir_ohne_Missings'  # 'Nudesc_OP_Tag
 COLNAME_SUBJID_BIOCOG = 'BIC_ID'
 COLNAME_TARGET_BIOCOG = 'POD_Ja_Nein'
 
+CSV_COLNAMES = {
+    'Sudocu': {
+        'subj_id': 'case_no',
+        'label': 'Nudesc_AWR_60min_Delir_ohne_Missings'
+    },
+    'Biocog': {
+        'subj_id': 'BIC_ID',
+        'label': 'POD_Ja_Nein'
+    }
+}
+

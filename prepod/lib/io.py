@@ -164,7 +164,7 @@ def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True
         'srate': raw.info['sfreq'],
         'ch_names': raw.info['ch_names'],
         'n_chans': len(raw.info['ch_names']),
-        'time_points': times,
+        'time_points': times * 1000,  # convert s to ms
         'markers': [],
         'starttime': datetime.datetime.strptime(start_time, FORMATS['datetime']),
         'subj_id': subj_id
@@ -393,7 +393,7 @@ def append_labels(data, labels):
     """
     updated_data = []
     for idx, dataset in enumerate(data):
-        dataset.data = np.expand_dims(dataset.data, axis=0)
+        # dataset.data = np.expand_dims(dataset.data, axis=0)
         dataset.names.insert(0, 'class')
         dataset.axes.insert(0, labels[idx])
         dataset.units.insert(0, '#')

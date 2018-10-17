@@ -1,12 +1,11 @@
-import pickle
-import sys
-
 import numpy as np
+import pandas as pd
 from scipy.signal import butter, lfilter, iirnotch
-from wyrm.processing import append as wyrm_append
+from wyrm.processing import append as wyrm_append, calculate_csp, segment_dat, append_epo, select_epochs
 from wyrm.types import Data
 
-from prepod.lib.io import read_bis, save_as_pickled
+import prepod.lib.constants as const
+from prepod.lib.io import read_bis
 
 
 def to_feature_vector(data, names=('class', 'amplitude'), units=('#', 'µV')):
@@ -377,29 +376,16 @@ def split_into_wins(data, bis_values, win_length=5, bis_crit=None, keep_proporti
     return data
 
 
-def append_label(data, label):
-    """Appends class label to epoched `Data` object"""
-    if not isinstance(data, Data):
-        msg = 'Only wyrm.types.Data objects are supported.'
-        raise TypeError(msg)
-    n_epochs = data.data.shape[0]
-    data.axes[0] = np.repeat(label, n_epochs)
-
-    return data
-
-
 def append_subj_id(data, subj_id):
     """Appends subj_id to epoched `Data` object"""
     if not isinstance(data, Data):
         msg = 'Only wyrm.types.Data objects are supported.'
         raise TypeError(msg)
     n_epochs = data.data.shape[0]
-    data.subj_id = np.repeat(subj_id, n_epochs)
-
-    return data
+    return np.repeat(subj_id, n_epochs)
 
 
-def merge_subjects(l, path_out=None):
+def merge_subjects(l, path_out=None, feature_vector=False):
     """Merges list of `Data` objects to one `Data` object
 
     Params
@@ -423,29 +409,15 @@ def merge_subjects(l, path_out=None):
         msg = 'All objects in list must be of type `wyrm.types.Data`'
         raise TypeError(msg)
     if len(l) < 2:
-        msg = 'At least two `Data` objects are needed to merge together.'
+        msg = 'At least two objects are needed for merge.'
         raise TypeError(msg)
 
-
-    n_channels = int(l[0].data.shape[1]/l[0].bis.shape[1])
-    samples_per_epoch = l[0].bis.shape[1]
-
-    bis = np.empty(shape=(0, samples_per_epoch), dtype='float64')
-    subj_ids = np.empty(shape=(0,), dtype='<U4')
+    data = None
     for idx, el in enumerate(l):
         if idx == 0:
             data = el
-            fs = data.fs
         else:
-            data = wyrm_append(data, el)
-        bis = np.concatenate((bis, el.bis))
-        subj_ids = np.concatenate((subj_ids, el.subj_id))
-        print('Appended {}/{}'.format(str(idx+1), str(len(l))))
-
-    # Add fs and bis to merged Data object
-    data.fs = fs
-    data.bis = np.tile(bis, (1, n_channels))  # repeat bis for all five channels
-    data.subj_ids = subj_ids
+            data = wyrm_append(data, el, extra=['bis', 'subj_id', 'markers'])
 
     if path_out:
         print('Saving...')
@@ -457,58 +429,147 @@ def merge_subjects(l, path_out=None):
 
 def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning'):
     """"""
-    chunks_data = data.data
-    chunks_bis = data.bis
-    axes = data.axes
-    subj_ids = data.subj_ids
+    dat = data.data.copy()
+    bis = data.bis.copy()
+    axes = data.axes.copy()
+    subj_id = data.subj_id.copy()
 
     # only keep windows where BIS <= bis_crit
     if bis_crit:
-        new_idx = np.where(np.all(chunks_bis <= bis_crit, axis=1))
-        chunks_data = chunks_data[new_idx]
-        chunks_bis = chunks_bis[new_idx]
+        new_idx = np.where(np.all(bis <= bis_crit, axis=1))
+        dat = dat[new_idx]
+        bis = bis[new_idx]
         axes[0] = axes[0][new_idx]
-        subj_ids = subj_ids[new_idx]
+        subj_id = subj_id[new_idx]
 
-    # keep only proportion of the data (counted from drop_from)
-    # TODO: Looks ugly
     if drop_perc:
         if drop_from not in ['beginning', 'end']:
             msg = 'drop_from must be one of \'beginning\', \'end\'.'
             raise ValueError(msg)
 
-        _data = np.empty(shape=(0, chunks_data.shape[1]), dtype='float64')
-        _bis = np.empty(shape=(0, chunks_bis.shape[1]), dtype='float64')
-        _axes = np.empty(shape=(0,), dtype='int64')
-        _subj_ids = np.empty(shape=(0,), dtype='<U4')
-        for subj_id in np.unique(subj_ids):
-            idx_subj = np.where(subj_ids == subj_id)
-            data_subset = chunks_data[idx_subj, :].squeeze()
-            bis_subset = chunks_bis[idx_subj, :].squeeze()
-            axes_subset = axes[0][idx_subj]
-            n_samples_to_drop = int(np.floor(data_subset.shape[0] * drop_perc))
-            subj_ids_subset = subj_ids[idx_subj]
-
+        unique_subj_ids = np.unique(subj_id)
+        idx_to_keep = []
+        for subj in unique_subj_ids:
+            idx_subj = np.where(subj_id == subj)[0]
+            data_subset = dat[idx_subj, :, :].squeeze()
+            n_epochs = data_subset.shape[0]
+            n_samples_per_epoch = data_subset.shape[1]
+            n_samples = n_epochs * n_samples_per_epoch
+            n_samples_to_drop = drop_perc * n_samples
+            n_epochs_to_drop = int(np.floor(n_samples_to_drop/n_samples_per_epoch))
             if drop_from == 'beginning':
-                _data = np.concatenate((_data, data_subset[n_samples_to_drop:,:].squeeze()))
-                _bis = np.concatenate((_bis, bis_subset[n_samples_to_drop:,:].squeeze()))
-                _axes = np.concatenate((_axes, axes_subset[n_samples_to_drop:]))
-                _subj_ids = np.concatenate((_subj_ids, subj_ids_subset[n_samples_to_drop:]))
+                idx_to_keep.append(idx_subj[n_epochs_to_drop:])
             else:
-                _data = np.concatenate((_data, data_subset[:-n_samples_to_drop, :].squeeze()))
-                _bis = np.concatenate((_bis, bis_subset[:-n_samples_to_drop, :].squeeze()))
-                _axes = np.concatenate((_axes, axes_subset[:-n_samples_to_drop]))
-                _subj_ids = np.concatenate((_subj_ids, subj_ids_subset[:-n_samples_to_drop]))
+                idx_to_keep.append(idx_subj[:-n_epochs_to_drop])
 
-        chunks_data = _data
-        axes[0] = _axes
-        chunks_bis = _bis
-        subj_ids = _subj_ids
+        idx_to_keep = np.concatenate(idx_to_keep).ravel()
+        data = select_epochs(data, indices=idx_to_keep)
+        data.subj_id = data.subj_id[idx_to_keep]
 
-    data.data = chunks_data
-    data.axes = axes
-    data.bis = chunks_bis
-    data.subj_ids = subj_ids
+        return data
+
+
+def match_bis(data, path_bis):
+    """"""
+    # TODO: Align on ms instead of s? Align on every BIS value (Time stamp)
+    # TODO: Drop where time jump in BIS >> 1s?
+    # TODO: Find 'drop post-BIS EEG' bug
+    bis = read_bis(path_bis)
+    fs_eeg = data.fs
+    eeg_start = data.starttime
+    bis_start = bis['SystemTime'].iloc[0]
+    bis_end = bis['SystemTime'].iloc[bis.shape[0]-1]
+    bis['t_delta'] = bis['SystemTime'].diff().apply(lambda x: x.total_seconds())
+
+    # drop samples pre-BIS recording
+    time_delta = bis_start-eeg_start
+    time_delta_s = time_delta.days * 24 * 3600 + time_delta.seconds
+
+    if time_delta_s < 0:  # drop bis vals if start before eeg start
+        bis = bis.drop(bis[bis['SystemTime'] < eeg_start].index)
+        bis.reset_index(inplace=True)
+        bis_start = bis['SystemTime'].iloc[0]
+        time_delta = bis_start - eeg_start
+        time_delta_s = time_delta.days * 24 * 3600 + time_delta.seconds
+
+    new_start = int(time_delta_s * fs_eeg)
+    data.data = data.data[new_start:]
+    data.axes[0] = data.axes[0][new_start:]
+
+    # drop samples post-BIS recording
+    bis_values = np.array(bis['BIS'])
+    time_delta = bis_end - bis_start
+    time_delta_s = time_delta.days * 24 * 3600 + time_delta.seconds
+    n_samples = int(time_delta_s * fs_eeg)
+    data.data = data.data[:n_samples]
+    data.axes[0] = data.axes[0][:n_samples]
+
+    # create array of BIS vals, one per sample in the EEG
+    t_deltas = np.append(np.delete(np.array(bis['t_delta']), 0), 0)
+    n_repeats = np.nan_to_num(t_deltas * fs_eeg, copy=True).astype('int')
+    bis_values = np.repeat(bis_values, n_repeats)  # one bis val per sample in eeg
+    bis_values = bis_values[:data.data.shape[0]]  # drop post-EEG BIS
+    data.data = data.data[:bis_values.shape[0]]  # drop post-BIS EEG
+    data.axes[0] = data.axes[0][:bis_values.shape[0]]
+    data.bis = bis_values
+
+    print('Successfully aligned {} with BIS values.'.format(
+        path_bis.split('/')[-2]
+    ))
 
     return data
+
+
+def create_markers(data, win_length):
+    """"""
+    timepoints = data.axes[0]
+    start = timepoints[0]
+    stop = timepoints[-1]
+    step = win_length*1000
+    markers = []
+    for idx in np.arange(start, stop, step):
+        markers.append([idx, 'M1'])
+    return markers
+
+
+def fetch_labels(path_labels, study, subj_ids):
+    """"""
+    if not isinstance(subj_ids, list):
+        subj_ids = [subj_ids]
+    subj_ids = [str(el) for el in subj_ids]
+    with open(path_labels, 'r') as f:
+        data = pd.read_csv(f, dtype='object')
+    name_subj_id = const.CSV_COLNAMES[study]['subj_id']
+    name_label = const.CSV_COLNAMES[study]['label']
+    labels_to_drop = [el for el in list(data) if el not in [name_subj_id, name_label]]
+    data = data.drop(labels=labels_to_drop, axis=1)
+    data = data[data[name_subj_id].isin(subj_ids)]
+    if data.shape[0] == 1:
+        return str(data[name_label].iloc[0])
+    else:
+        return list(data[name_label])
+
+
+def segment_data(data, win_length):
+    """"""
+    label = data.label
+    if not isinstance(label, str):
+        msg = 'Must pass label as string.'
+        raise TypeError(msg)
+    marker_def = {label: ['M1']}
+    ival = [0, win_length*1000]
+    data = segment_dat(dat=data, marker_def=marker_def, ival=ival, timeaxis=0)
+
+    # segment_dat drops samples at the borders. Since markers are defined
+    # starting at t0, it will always only drop samples at the end (if at all).
+    # Drop associated BIS samples before reshaping.
+    data.bis = data.bis[:data.data.shape[0]*data.data.shape[1]]
+    data.bis = data.bis.reshape([data.data.shape[0], -1])
+
+    return data
+
+
+def calc_csp(data):
+    """"""
+    pass
 

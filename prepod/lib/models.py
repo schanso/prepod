@@ -154,10 +154,10 @@ def train_test_wyrm(data, test_size):
 
 def train_test_cv(data, counter=0):
     """"""
-    unique_subj = np.unique(data.subj_ids)
+    unique_subj = np.unique(data.subj_id)
     leave_out_subj = unique_subj[counter]
-    idx_train = np.where(data.subj_ids != leave_out_subj)
-    idx_test = np.where(data.subj_ids == leave_out_subj)
+    idx_train = np.where(data.subj_id != leave_out_subj)
+    idx_test = np.where(data.subj_id == leave_out_subj)
     X_train = data.data[idx_train, :].squeeze()
     X_test = data.data[idx_test, :].squeeze()
     y_train = data.axes[0][idx_train]
@@ -229,5 +229,4 @@ def svm(data_train, data_test, n_samples=None, kernel='linear'):
     clf.fit(X, y)
     pred = clf.predict(X_)
     return np.mean(pred == y_)
-
 
