@@ -1,5 +1,6 @@
 import numpy as np
 from wyrm.processing import create_feature_vectors
+import os
 
 import prepod.lib.prep as prep
 from prepod.lib.io import return_fnames, parse_raw, import_targets
@@ -10,6 +11,7 @@ from prepod.lib.models import train_test_wyrm, lda_vyrm, svm, train_test_cv, lda
 from prepod.lib.prep import (align_bis, to_feature_vector, append_subj_id,
                              merge_subjects, split_into_wins, filter_raw, subset_data,
                              calc_csp)
+
 
 # PARAMS
 
@@ -34,10 +36,16 @@ path_labels = path_data + 'info/sudocu_info/subject_data.csv'
 path_log = path_data + 'info/log.csv'
 dir_raw = path_data + 'rec/sudocu/brainvision/raw'
 dir_filtered = path_data + 'rec/sudocu/brainvision/filtered/'
+if not os.path.exists(dir_filtered):
+    os.makedirs(dir_filtered)
 dir_bis = path_data + 'rec/sudocu/bis/'
 dir_out_raw = '{}/{}/{}'.format(dir_raw, 'npy', region)
 dir_out_filtered = dir_filtered + region
+if not os.path.exists(dir_out_filtered):
+    os.makedirs(dir_out_filtered)
 dir_signal = '{}/{}'.format(dir_out_filtered, freq_band)
+if not os.path.exists(dir_signal):
+    os.makedirs(dir_signal)
 fname_merged = 'complete.npy'
 path_out_merged = '{}/{}'.format(dir_signal, fname_merged)
 
