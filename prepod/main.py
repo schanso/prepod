@@ -1,4 +1,5 @@
 import numpy as np
+import os
 
 from prepod.lib.io import return_fnames, parse_raw, import_targets
 from prepod.lib.constants import (COLNAME_SUBJID_SUDOCU, COLNAME_TARGET_SUDOCU,
@@ -16,6 +17,8 @@ path_labels = path_data + 'info/sudocu_info/subject_data.csv'
 path_log = path_data + 'info/log.csv'
 dir_raw = path_data + 'rec/sudocu/brainvision/raw'
 dir_filtered = path_data + 'rec/sudocu/brainvision/filtered/'
+if not os.path.exists(dir_filtered):
+    os.makedirs(dir_filtered)
 dir_bis = path_data + 'rec/sudocu/bis/'
 
 
@@ -45,7 +48,11 @@ shrink = False
 
 dir_out_raw = '{}/{}/{}'.format(dir_raw, 'npy', region)
 dir_out_filtered = dir_filtered + region
+if not os.path.exists(dir_out_filtered):
+    os.makedirs(dir_out_filtered)
 dir_signal = '{}/{}'.format(dir_out_filtered, freq_band)
+if not os.path.exists(dir_signal):
+    os.makedirs(dir_signal)
 
 for subj_id in subj_ids:
     path_in = [dir_raw + '/' + el for el in fnames_raw if subj_id in el]
