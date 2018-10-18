@@ -10,10 +10,8 @@ import numpy as np
 import pandas as pd
 from wyrm.types import Data
 
-from prepod.lib.constants import (SUPPORTED_FTYPES, SUPPORTED_FORMATS,
-                                  SUPPORTED_REGIONS, FORMATS)
-from prepod.lib.helpers import fix_known_errors
-
+from prepod.lib.constants import (SUPPORTED_FTYPES, SUPPORTED_REGIONS, FORMATS)
+from prepod.lib.helpers import fix_known_errors, return_fnames
 
 logging.getLogger('mne').setLevel(logging.ERROR)
 
@@ -26,32 +24,6 @@ def strip_ch_names(raw):
     new_names = dict(zip(old_names, new_names))
     raw.rename_channels(new_names)
     return raw
-
-
-def return_fnames(dir_in, substr=None, sort_list=True):
-    """Returns list of file names in `dir_in`
-
-    Params
-    ------
-        substr : str or None
-            if not None, returns subset of file names that include substr
-        sort_list : boolean
-            if True, sorts list before returning
-
-    Returns
-    -------
-        l : list or str
-            file name(s) in `dir_in` (that optionally contain substr)
-    """
-    l = [f for f in os.listdir(dir_in)
-         if (os.path.isfile(os.path.join(dir_in, f)) and not f.startswith('.'))]
-    if substr:
-        l = [f for f in l if substr in f]
-    if sort_list:
-        l.sort()
-    if len(l) == 1:
-        l = l[0]
-    return l
 
 
 def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True,
@@ -287,120 +259,6 @@ def read_bis(path_in, from_type='bilateral'):
     return df
 
 
-def import_folder(dir_in, substr=None, exclude=[], in_format='wyrm'):
-    """Imports folder of .npy files and returns them as list
-
-    Params
-    ------
-        dir_in : str
-            path to dir with .npy files
-        substr : str
-            if not None, only file names including `substr` are loaded
-        exclude : list of str
-            indicating which (if any) files should be excluded
-        in_format : str
-            format to read from file
-
-    Returns
-    -------
-        data : list
-            list of ndArrays
-
-    Raises
-    ------
-        ValueError if file to be excluded is not in dir.
-    """
-    if in_format not in SUPPORTED_FORMATS:
-        msg = ('Format \'{}\' not supported. '
-               + 'Use one of {}.').format(in_format, str(SUPPORTED_FORMATS))
-        raise TypeError(msg)
-
-    fnames = return_fnames(dir_in, substr=substr)
-    if len(exclude):
-        try:
-            [fnames.remove(el) for el in exclude]
-        except ValueError:
-            msg = ('Seems at least one of the file names to be excluded does '
-                   + 'not exist in {}.').format(dir_in)
-            raise ValueError(msg)
-
-    data = []
-    fpaths = [dir_in + f for f in fnames]
-    for fpath in fpaths:
-        _data = np.load(fpath)
-        if in_format == 'wyrm':
-            _data = _data.flatten()[0]
-        data.append(_data)
-        print('Successfully read file ' + fpath)
-    return data
-
-
-def import_targets(fpath, colname_subjid, colname_target, subj_ids=None):
-    """Imports targets from CSV table
-
-    Params
-    ------
-        fpath : str
-            String to CSV file
-        colname_subjid : str
-            column name of subject ids
-        colname_target : str
-            column name of targets
-        subj_ids : list or None
-            if not None, creates subset of targets for subj_ids
-
-    Returns
-    -------
-        targets : ndArray
-            array of target labels
-    """
-    df = pd.read_csv(fpath, dtype='str')
-    targets = df[[colname_subjid, colname_target]]
-    targets.columns = ['case_no', 'target']
-    targets['target'] = targets['target'].astype('int')
-    if subj_ids:
-        if not isinstance(subj_ids, list):
-            subj_ids = [subj_ids]
-        targets = targets[targets['case_no'].isin(subj_ids)]
-    return np.array(targets['target'])
-
-
-
-def append_labels(data, labels):
-    """Stores class labels in epoched `Data` objects
-
-    wyrm stores epoched EEG data in one Data object, its `axes` attribute
-    holding an array of class labels for each epoch. To merge `Data` obj
-    with class names usually stored in CSV-like files, `append_labels`
-    loops over each epoch in `Data` and create label info.
-
-    Params
-    ------
-        data : wyrm.Data
-            Data object holding epoched EEG data in data.data
-        labels : list
-            list of class labels, have to correspond to epochs by index
-
-    Returns
-    -------
-        updated_data : list
-            list of `wyrm.Data` objects, each holding on epoch
-
-    See also
-    --------
-        :func: parse_raw
-        :type: wyrm.Data
-    """
-    updated_data = []
-    for idx, dataset in enumerate(data):
-        # dataset.data = np.expand_dims(dataset.data, axis=0)
-        dataset.names.insert(0, 'class')
-        dataset.axes.insert(0, labels[idx])
-        dataset.units.insert(0, '#')
-        updated_data.append(dataset)
-    return updated_data
-
-
 def save_as_pickled(data, path_out):
     """"""
     max_bytes = 2 ** 31 - 1
@@ -416,3 +274,4 @@ def load_wyrm(path):
     data = np.load(file=path).flatten()[0]
     print('Successfully loaded data from {}.'.format(path))
     return data
+

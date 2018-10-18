@@ -3,6 +3,7 @@ import os
 import numpy as np
 
 import prepod.lib.constants as const
+import prepod.lib.helpers as hlp
 import prepod.lib.io as io
 import prepod.lib.models as models
 import prepod.lib.prep as prep
@@ -17,8 +18,8 @@ lcut, hcut = const.FREQ_BANDS[freq_band]
 
 test_size = .5
 win_length = 5
-bis_crit = 50
-drop_perc = .5
+bis_crit = 60
+drop_perc = .66
 drop_from = 'beginning'
 solver = 'svd'
 shrink = False
@@ -47,7 +48,7 @@ path_out_merged = '{}/{}'.format(dir_signal, fname_merged)
 
 # INFO
 
-fnames_raw = io.return_fnames(dir_in=dir_raw)
+fnames_raw = hlp.return_fnames(dir_in=dir_raw)
 subj_ids = sorted(list(set([el.split('_')[0] for el in fnames_raw])))
 subj_ids = [el for el in subj_ids if el not in const.EXCLUDE_SUBJ]
 subj_ids = [el for el in subj_ids if int(el) <= 2262]
@@ -68,8 +69,8 @@ for subj_id in subj_ids:
 
 datasets = []
 for subj_id in subj_ids:
-    curr_fname = io.return_fnames(dir_in=dir_signal, substr=subj_id)
-    path_signal = '{}/{}'.format(dir_signal, io.return_fnames(dir_in=dir_signal, substr=subj_id))
+    curr_fname = hlp.return_fnames(dir_in=dir_signal, substr=subj_id)
+    path_signal = '{}/{}'.format(dir_signal, hlp.return_fnames(dir_in=dir_signal, substr=subj_id))
     path_bis = dir_bis + subj_id + '/'
     data = io.load_wyrm(path=path_signal)
     data.markers = prep.create_markers(data, win_length)
