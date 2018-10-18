@@ -388,12 +388,6 @@ def match_bis(data, path_bis):
         path_bis.split('/')[-2]
     ))
 
-    # drop nan
-    mask = ~np.any(np.isnan(data.data), axis=1)
-    data.data = data.data[mask]
-    data.axes[0] = data.axes[0][mask]
-    data.bis = data.bis[mask]
-
     return data
 
 
@@ -432,6 +426,17 @@ def segment_data(data, win_length):
     data.bis = data.bis[:data.data.shape[0]*data.data.shape[1]]
     data.bis = data.bis.reshape([data.data.shape[0], -1])
 
+    # drop nan epochs
+    # this is handled here, not earlier, as to not drop samples here and there,
+    # but instead exclude whole windows if at least one sample is missing, thus
+    # keeping meaningful distance between any two time points
+    mask1 = np.all(~np.any(np.isnan(data.data), axis=1), axis=1)
+    mask2 = ~np.any(np.isnan(data.bis), axis=1)
+    mask = mask1 & mask2
+    data.data = data.data[mask]
+    data.axes[0] = data.axes[0][mask]
+    data.bis = data.bis[mask]
+
     return data
 
 
@@ -462,6 +467,7 @@ def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning'):
     # TODO: Handle drop_perc == None
     dat = data.data.copy()
     bis = data.bis.copy()
+
     axes = data.axes.copy()
     subj_id = data.subj_id.copy()
 
