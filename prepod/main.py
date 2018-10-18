@@ -13,16 +13,19 @@ import prepod.lib.prep as prep
 
 study = 'Sudocu'
 region = 'frontal'
-freq_band = 'alpha'
+freq_band = 'total'
 lcut, hcut = const.FREQ_BANDS[freq_band]
 
 test_size = .5
+n_leave_out = 2
 win_length = 5
-bis_crit = 60
-drop_perc = .66
+bis_crit = 50
+drop_perc = .5
 drop_from = 'beginning'
+
 solver = 'svd'
 shrink = False
+kernel = 'rbf'
 
 
 # PATHS
@@ -51,7 +54,7 @@ path_out_merged = '{}/{}'.format(dir_signal, fname_merged)
 fnames_raw = hlp.return_fnames(dir_in=dir_raw)
 subj_ids = sorted(list(set([el.split('_')[0] for el in fnames_raw])))
 subj_ids = [el for el in subj_ids if el not in const.EXCLUDE_SUBJ]
-subj_ids = [el for el in subj_ids if int(el) <= 2262]
+subj_ids = [el for el in subj_ids if int(el) <= 2347]
 
 
 # PARSE RAW FILES, FILTER, STORE AS NPY
@@ -84,23 +87,20 @@ prep.merge_subjects(datasets, path_out=path_out_merged)
 # CLASSIFICATION (VANILLA LDA + SVM)
 
 data = io.load_wyrm(path=path_out_merged)
-data = prep.subset_data(data, bis_crit=bis_crit, drop_perc=drop_perc, drop_from='end')
-data = prep.apply_csp(data)
+data = prep.subset_data(data, bis_crit=bis_crit, drop_perc=drop_perc, drop_from=drop_from)
+data = prep.apply_csp(data, return_as='logvar')
 data = prep.create_fvs(data)
-tot = {'lda': [], 'svm': []}
+
+acc_all_runs = []
 for i in range(len(subj_ids)):
-    data_train, data_test = models.train_test_cv(data, leave_out=i)
-    acc_lda = models.lda(data_train=data_train, data_test=data_test, solver=solver, shrinkage=shrink)
-    acc_svm = models.svm(data_train, data_test, kernel='linear')
+    data_train, data_test, left_out = models.train_test_cv(data, n_leave_out=n_leave_out, idx=i)
+    # acc = models.lda(data_train=data_train, data_test=data_test, solver=solver, shrinkage=shrink)
+    acc = models.svm(data_train, data_test, kernel=kernel)
+    acc_all_runs.append(acc)
 
-    tot['lda'].append(acc_lda)
-    tot['svm'].append(acc_svm)
+    print('Run {}/{}: {:.3f} (left out: {})'.format(
+        i+1, len(subj_ids), acc, left_out))
 
-    print('Run {}\nLDA: {}, SVM: {} (train: {}, test: {}\nLeft out: {})'.format(
-            str(i+1), str(acc_lda), str(acc_svm), str(data_train.data.shape),
-            str(data_test.data.shape), str(np.unique(data_test.subj_id))))
-
-print('Mean/STD\nLDA: {}/{}, SVM: {}/{}'.format(
-    str(np.mean(tot['lda'])), str(np.std(tot['lda'])),
-    str(np.mean(tot['svm'])), str(np.std(tot['svm']))))
+print('Mean over all runs: {} (std: {})'.format(
+    np.mean(acc_all_runs), np.std(acc_all_runs)))
 
