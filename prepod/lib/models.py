@@ -3,9 +3,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.svm import SVC, LinearSVC
 from wyrm.types import Data
-from wyrm.processing import lda_train, lda_apply
 
-from prepod.lib.prep import to_feature_vector
+import prepod.lib.prep as prep
 
 
 def encode_one_hot(targets):
@@ -60,57 +59,8 @@ def equalize_proportions(labels, n_classes):
     return np.hstack(tuple(value for key, value in batches.items()))
 
 
-def train_test_sklearn(data, targets, n_classes, test_size=.3, reshape=True):
+def train_test(data, test_size):
     """Splits data into train and test set of equal class proportions
-
-    Params
-    ------
-        data : ndArray
-            data to be split
-        targets : list
-            target labels
-        test_size : float
-            proportion of test to training size
-        n_classe : int
-            number of classes in the data
-        reshape : bool
-            whether data should be reshaped to two dimensions (necessity
-            for sklearn classifiers)
-
-    Returns
-    -------
-        X_train : ndArray
-            training data
-        X_test : ndArray
-            test data
-        y_train : ndArray
-            training labels
-        y_test : ndArray
-            test labels
-
-    --- IN DEVELOPMENT ---
-    """
-    # TODO: Implement one-hot
-    X_train, X_test, y_train, y_test = train_test_split(
-        data, targets, test_size=test_size, shuffle=True
-    )
-
-    ind_train = equalize_proportions(y_train, n_classes=n_classes)
-    ind_test = equalize_proportions(y_test, n_classes=n_classes)
-    X_train, y_train = X_train[ind_train, :, :], y_train[ind_train]
-    X_test, y_test = X_test[ind_test, :, :], y_test[ind_test]
-
-    if reshape:
-        n_trials, n_channels, n_samples = X_train.shape
-        X_train = X_train.reshape((n_trials, n_channels * n_samples))
-        n_trials, n_channels, n_samples = X_test.shape
-        X_test = X_test.reshape((n_trials, n_channels * n_samples))
-
-    return X_train, X_test, y_train, y_test
-
-
-def train_test_wyrm(data, test_size):
-    """Splits wyrm Data into train + test set of equal class proportions
 
     Params
     ------
@@ -135,7 +85,7 @@ def train_test_wyrm(data, test_size):
     ind = equalize_proportions(labels=labels, n_classes=n_classes)
     if len(data.axes) > 2:
         try:
-            data = to_feature_vector(data)
+            data = prep.create_fvs(data)
         except Exception as e:
             msg = ('It seems you have to reshape your data first.\n\n'
                    + str(e))
@@ -155,10 +105,30 @@ def train_test_wyrm(data, test_size):
     return dat_train, dat_test
 
 
-def train_test_cv(data, counter=0):
-    """"""
+def train_test_cv(data, leave_out=0):
+    """Splits data into train and test according to LOOCV
+
+    Leave-one-subject-out cross validation where n-1 subjects are used
+    for training, subject(n) for testing. The training set is subset to
+    yield equal class proportions.
+
+    Params
+    ------
+        data : wyrm.types.Data
+            data to be split into train and test set
+        leave_out : int
+            subj_id in unique subject at index `leave_out` is left out
+            of the training set
+
+    Returns
+    -------
+        dat_train : wyrm.Data
+            Data object holding training data
+        dat_test : wyrm.Data
+            Data object holding test data
+    """
     unique_subj = np.unique(data.subj_id)
-    leave_out_subj = unique_subj[counter]
+    leave_out_subj = unique_subj[leave_out]
     idx_train = np.where(data.subj_id != leave_out_subj)
     idx_test = np.where(data.subj_id == leave_out_subj)
     X_train = data.data[idx_train, :].squeeze()
@@ -182,15 +152,6 @@ def train_test_cv(data, counter=0):
     dat_test = data.copy(data=X_test, axes=ax_test, names=names, units=units)
 
     return dat_train, dat_test
-
-
-def lda_vyrm(data_train, data_test, shrink=False):
-    """Trains vyrm's LDA classifier and tests it on `data_test`"""
-    clf = lda_train(data_train, shrink=shrink)
-    out = lda_apply(data_test, clf)
-    pred = (np.sign(out) + 1) / 2
-    acc = (pred == data_test.axes[0]).sum() / len(pred)
-    return acc
 
 
 def lda(data_train, data_test, solver='lsqr', shrinkage=True):

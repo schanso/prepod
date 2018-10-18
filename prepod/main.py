@@ -88,7 +88,7 @@ data = prep.subset_data(data, bis_crit=bis_crit, drop_perc=drop_perc, drop_from=
 data = prep.create_fvs(data)
 tot = {'lda': [], 'svm': []}
 for i in range(len(subj_ids)):
-    data_train, data_test = models.train_test_cv(data, counter=i)
+    data_train, data_test = models.train_test_cv(data, leave_out=i)
     acc_lda = models.lda(data_train=data_train, data_test=data_test, solver=solver, shrinkage=shrink)
     acc_svm = models.svm(data_train, data_test, kernel='linear')
 
