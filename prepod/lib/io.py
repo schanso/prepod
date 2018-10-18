@@ -10,8 +10,9 @@ import numpy as np
 import pandas as pd
 from wyrm.types import Data
 
-from prepod.lib.constants import (SUPPORTED_FTYPES, SUPPORTED_REGIONS, FORMATS)
-from prepod.lib.helpers import fix_known_errors, return_fnames
+import prepod.lib.constants as const
+import prepod.lib.helpers as hlp
+
 
 logging.getLogger('mne').setLevel(logging.ERROR)
 
@@ -38,7 +39,7 @@ def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True
             if not None, will store raw signals in dir_out (.npy)
         ftype: str
             file type of raw file, supported formats are read from
-            prepod.lib.constants.`SUPPORTED_FTYPES`
+            prepod.lib.constants.`const.SUPPORTED_FTYPES`
         region : str or None
             regions to return data for; supported strings include:
             'central', 'frontal', 'parietal', 'occipital', 'temporal';
@@ -71,9 +72,9 @@ def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True
     --------
         :type: wyrm.Data
     """
-    if ftype not in SUPPORTED_FTYPES:
+    if ftype not in const.SUPPORTED_FTYPES:
         msg = 'File type {} not supported. Choose one of {}'.format(
-            ftype, ', '.join(SUPPORTED_FTYPES))
+            ftype, ', '.join(const.SUPPORTED_FTYPES))
         raise TypeError(msg)
 
     if isinstance(path_in, list):
@@ -81,7 +82,7 @@ def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True
     else:
         if os.path.isdir(path_in):
             path_in = path_in + '/' if path_in[-1] != '/' else path_in
-            paths = [path_in + el for el in return_fnames(path_in, substr=ftype)]
+            paths = [path_in + el for el in hlp.return_fnames(path_in, substr=ftype)]
         else:
             paths = [path_in.strip()]
 
@@ -113,13 +114,13 @@ def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True
     if drop_stim:
         to_drop = [el for el in raw.ch_names if 'STI' in el]
         raw.drop_channels(to_drop)
-    if region and region in SUPPORTED_REGIONS:
+    if region and region in const.SUPPORTED_REGIONS:
         to_drop = [el for el in raw.ch_names
                    if region[0].upper() not in el]
         raw.drop_channels(to_drop)
     else:
         print('Your region of interest is not supported. Choose one of '
-              + str(SUPPORTED_REGIONS) + '. Will return full set.')
+              + str(const.SUPPORTED_REGIONS) + '. Will return full set.')
 
     if n_samples:
         signal = raw._data[:, :n_samples]
@@ -129,7 +130,7 @@ def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True
         times = raw.times
 
     start_time = datetime.datetime.utcfromtimestamp(
-        raw.info['meas_date']).strftime(FORMATS['datetime'])
+        raw.info['meas_date']).strftime(const.FORMATS['datetime'])
 
     d = {
         'signal': signal,
@@ -138,11 +139,11 @@ def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True
         'n_chans': len(raw.info['ch_names']),
         'time_points': times * 1000,  # convert s to ms
         'markers': [],
-        'starttime': datetime.datetime.strptime(start_time, FORMATS['datetime']),
+        'starttime': datetime.datetime.strptime(start_time, const.FORMATS['datetime']),
         'subj_id': subj_id
     }
 
-    d = fix_known_errors(d)
+    d = hlp.fix_known_errors(d)
 
     print('Successfully read file(s) ' + ', '.join(paths))
 
@@ -194,7 +195,7 @@ def read_bis(path_in, from_type='bilateral'):
     if is_dir:
         if not path_in[-1] == '/':
             path_in = path_in + '/'
-        fnames = return_fnames(dir_in=path_in, substr='asp')
+        fnames = hlp.return_fnames(dir_in=path_in, substr='asp')
         if isinstance(fnames, str):  # to list if only one file
             fnames = [fnames]
         if len(fnames) == 0:
