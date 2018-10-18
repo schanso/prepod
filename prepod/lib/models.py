@@ -44,10 +44,13 @@ def equalize_proportions(labels, n_classes):
             list of shuffled indices with equal class proportions
 
     """
+    labels = [str(el) for el in labels]
+    if not isinstance(labels, np.ndarray):
+        labels = np.array(labels)
     batches = {}
     min_len = len(labels)
     for i in range(n_classes):
-        curr_ind = np.where(labels == i)
+        curr_ind = np.where(labels == str(i))
         np.random.shuffle(curr_ind[0])
         if len(curr_ind[0]) < min_len:
             min_len = len(curr_ind[0])
@@ -169,15 +172,16 @@ def train_test_cv(data, counter=0):
     X_train = X_train[idx_equalized, :].squeeze()
     y_train = y_train[idx_equalized]
 
-    ax_train = [y_train, data.axes[1]]
-    ax_test = [y_test, data.axes[1]]
-    names = data.names
-    units = data.units
-    dat_train = Data(data=X_train, axes=ax_train, names=names, units=units)
-    dat_test = Data(data=X_test, axes=ax_test, names=names, units=units)
+    ax_train = data.axes[:]
+    ax_train[0] = y_train
+    ax_test = data.axes[:]
+    ax_test[0] = y_test
+    names = data.names[:]
+    units = data.units[:]
+    dat_train = data.copy(data=X_train, axes=ax_train, names=names, units=units)
+    dat_test = data.copy(data=X_test, axes=ax_test, names=names, units=units)
 
     return dat_train, dat_test
-
 
 
 def lda_vyrm(data_train, data_test, shrink=False):
