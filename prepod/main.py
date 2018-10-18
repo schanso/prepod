@@ -61,8 +61,7 @@ for subj_id in subj_ids:
     path_out = '{}/{}/{}.npy'.format(dir_out_filtered, freq_band, subj_id)
     data = io.parse_raw(path_in=path_in, ftype='edf', region=region)
     filtered = prep.filter_raw(data, srate=data.fs, l_cutoff=lcut, h_cutoff=hcut)
-    np.save(path_out, arr=filtered)
-    print('Successfully wrote data to ' + path_out)
+    io.save_as_npy(data=filtered, path=path_out)
 
 
 # LOAD SUBJ DATA, APPEND LABELS, MERGE

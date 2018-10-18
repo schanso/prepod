@@ -166,8 +166,7 @@ def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True
         if not os.path.exists(dir_out):
             os.makedirs(dir_out)
         path_out = dir_out + paths[0].split('/')[-1].replace(ftype, 'npy')
-        np.save(path_out, data)
-        print('Successfully wrote data to ' + path_out)
+        save_as_npy(data=data, path=path_out)
 
     return data
 
@@ -260,6 +259,19 @@ def read_bis(path_in, from_type='bilateral'):
     return df
 
 
+def load_wyrm(path):
+    """Loads .npy files storing wyrm.Data objects"""
+    data = np.load(file=path).flatten()[0]
+    print('Successfully loaded data from {}.'.format(path))
+    return data
+
+
+def save_as_npy(data, path):
+    """Saves wyrm.Data objects as .npy files"""
+    np.save(path, arr=data)
+    print('Successfully wrote data to ' + path)
+
+
 def save_as_pickled(data, path_out):
     """"""
     max_bytes = 2 ** 31 - 1
@@ -268,11 +280,4 @@ def save_as_pickled(data, path_out):
     with open(path_out, 'wb') as f_out:
         for idx in range(0, n_bytes, max_bytes):
             f_out.write(bytes_out[idx:idx + max_bytes])
-
-
-def load_wyrm(path):
-    """Loads .npy files storing wyrm.Data objects"""
-    data = np.load(file=path).flatten()[0]
-    print('Successfully loaded data from {}.'.format(path))
-    return data
 
