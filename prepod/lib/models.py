@@ -135,7 +135,8 @@ def train_test_cv(data, n_leave_out=1, idx=0):
     if n_leave_out > 1:
         info = list(set(list(zip(data.subj_id, data.axes[0]))))
         subj_label = [el[1] for el in info if el[0] == leave_out_subj[0]][0]
-        combine_with = [el[0] for el in info if el[1] != subj_label]
+        combine_with = [el[0] for el in info
+                        if el[1] != subj_label and el[0] != leave_out_subj[0]]
         np.random.shuffle(combine_with)
         leave_out_subj.append(combine_with[0])
 
