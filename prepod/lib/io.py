@@ -410,3 +410,9 @@ def save_as_pickled(data, path_out):
         for idx in range(0, n_bytes, max_bytes):
             f_out.write(bytes_out[idx:idx + max_bytes])
 
+
+def load_wyrm(path):
+    """Loads .npy files storing wyrm.Data objects"""
+    data = np.load(file=path).flatten()[0]
+    print('Successfully loaded data from {}.'.format(path))
+    return data
