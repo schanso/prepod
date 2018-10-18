@@ -1,5 +1,4 @@
 import numpy as np
-from wyrm.processing import create_feature_vectors
 import os
 
 import prepod.lib.prep as prep
@@ -8,7 +7,7 @@ from prepod.lib.constants import (COLNAME_SUBJID_SUDOCU, COLNAME_TARGET_SUDOCU,
                                   EXCLUDE_SUBJ)
 import prepod.lib.constants as const
 from prepod.lib.models import train_test_wyrm, lda_vyrm, svm, train_test_cv, lda
-from prepod.lib.prep import (align_bis, to_feature_vector, append_subj_id,
+from prepod.lib.prep import (align_bis,
                              merge_subjects, split_into_wins, filter_raw, subset_data,
                              calc_csp)
 
@@ -93,8 +92,8 @@ merge_subjects(datasets, path_out=path_out_merged)
 
 data = np.load(file=path_out_merged).flatten()[0]
 print('Done loading')
-data = subset_data(data, bis_crit=bis_crit, drop_perc=drop_perc, drop_from='end')
-data = create_feature_vectors(data)
+data = prep.subset_data(data, bis_crit=bis_crit, drop_perc=drop_perc, drop_from='end')
+data = prep.create_fvs(data)
 tot = {'lda': [], 'svm': []}
 for i in range(len(subj_ids)):
     data_train, data_test = train_test_cv(data, counter=i)
