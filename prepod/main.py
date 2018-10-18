@@ -85,6 +85,7 @@ prep.merge_subjects(datasets, path_out=path_out_merged)
 
 data = io.load_wyrm(path=path_out_merged)
 data = prep.subset_data(data, bis_crit=bis_crit, drop_perc=drop_perc, drop_from='end')
+data = prep.apply_csp(data)
 data = prep.create_fvs(data)
 tot = {'lda': [], 'svm': []}
 for i in range(len(subj_ids)):
@@ -95,9 +96,9 @@ for i in range(len(subj_ids)):
     tot['lda'].append(acc_lda)
     tot['svm'].append(acc_svm)
 
-    print('Run {}\nLDA: {}, SVM: {} (train: {}, test: {})'.format(
+    print('Run {}\nLDA: {}, SVM: {} (train: {}, test: {}\nLeft out: {})'.format(
             str(i+1), str(acc_lda), str(acc_svm), str(data_train.data.shape),
-            str(data_test.data.shape)))
+            str(data_test.data.shape), str(np.unique(data_test.subj_id))))
 
 print('Mean/STD\nLDA: {}/{}, SVM: {}/{}'.format(
     str(np.mean(tot['lda'])), str(np.std(tot['lda'])),

@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy.signal import butter, lfilter, iirnotch
-from wyrm.processing import append as wyrm_append, segment_dat, select_epochs
+from wyrm.processing import append as wyrm_append, segment_dat, select_epochs, calculate_csp, apply_spatial_filter
 from wyrm.types import Data
 
 import prepod.lib.constants as const
@@ -523,4 +523,10 @@ def create_fvs(data):
     units[-1] = 'dl'
 
     return data.copy(data=dat, axes=axes, names=names, units=units)
+
+
+def apply_csp(data):
+    """Calculates and applies CSP"""
+    w, a, d = calculate_csp(data)
+    return apply_spatial_filter(data, w)
 
