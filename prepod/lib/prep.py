@@ -58,9 +58,9 @@ def to_feature_vector(data, names=('class', 'amplitude'), units=('#', 'µV')):
 
 def create_fvs(data):
     """"""
-    dat = data.data.reshape((data.axes[0], -1))
+    dat = data.data.reshape((data.axes[0].shape[0], -1))
     axes = data.axes[:2]
-    axes[-1] = np.arange(data.shape[-1])
+    axes[-1] = np.arange(data.data.shape[-1])
     names = data.names[:2]
     names[-1] = 'feature_vector'
     units = data.units[:2]
