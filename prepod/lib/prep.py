@@ -56,6 +56,19 @@ def to_feature_vector(data, names=('class', 'amplitude'), units=('#', 'µV')):
     return data
 
 
+def create_fvs(data):
+    """"""
+    dat = data.data.reshape((data.axes[0], -1))
+    axes = data.axes[:2]
+    axes[-1] = np.arange(data.shape[-1])
+    names = data.names[:2]
+    names[-1] = 'feature_vector'
+    units = data.units[:2]
+    units[-1] = 'dl'
+
+    return data.copy(data=dat, axes=axes, names=names, units=units)
+
+
 def detect_bads(x, srate, corr_threshold=0.4, window_width=1,
                 perc_of_windows=0.01, set_to_zero=True):
     """Detects bad channels.
@@ -532,33 +545,33 @@ def create_markers(data, win_length):
     return markers
 
 
-def fetch_labels(path_labels, study, subj_ids):
+def fetch_labels(path_labels, study, subj_id):
     """"""
-    if not isinstance(subj_ids, list):
-        subj_ids = [subj_ids]
-    subj_ids = [str(el) for el in subj_ids]
+    if not isinstance(subj_id, list):
+        subj_id = [subj_id]
+    subj_ids = [str(el) for el in subj_id]
     with open(path_labels, 'r') as f:
-        data = pd.read_csv(f, dtype='object')
+        dat = pd.read_csv(f, dtype='object')
     name_subj_id = const.CSV_COLNAMES[study]['subj_id']
     name_label = const.CSV_COLNAMES[study]['label']
-    labels_to_drop = [el for el in list(data) if el not in [name_subj_id, name_label]]
-    data = data.drop(labels=labels_to_drop, axis=1)
-    data = data[data[name_subj_id].isin(subj_ids)]
-    if data.shape[0] == 1:
-        return str(data[name_label].iloc[0])
+    labels_to_drop = [el for el in list(dat) if el not in [name_subj_id, name_label]]
+    dat = dat.drop(labels=labels_to_drop, axis=1)
+    dat = dat[dat[name_subj_id].isin(subj_ids)]
+    if dat.shape[0] == 1:
+        return str(dat[name_label].iloc[0])
     else:
-        return list(data[name_label])
+        return list(dat[name_label])
 
 
 def segment_data(data, win_length):
     """"""
     label = data.label
     if not isinstance(label, str):
-        msg = 'Must pass label as string.'
-        raise TypeError(msg)
+        label = str(label)
     marker_def = {label: ['M1']}
     ival = [0, win_length*1000]
     data = segment_dat(dat=data, marker_def=marker_def, ival=ival, timeaxis=0)
+    data.axes[0] = np.repeat(label, data.axes[0].shape[0])  # update class names
 
     # segment_dat drops samples at the borders. Since markers are defined
     # starting at t0, it will always only drop samples at the end (if at all).
