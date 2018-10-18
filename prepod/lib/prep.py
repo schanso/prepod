@@ -388,6 +388,12 @@ def match_bis(data, path_bis):
         path_bis.split('/')[-2]
     ))
 
+    # drop nan
+    mask = ~np.any(np.isnan(data.data), axis=1)
+    data.data = data.data[mask]
+    data.axes[0] = data.axes[0][mask]
+    data.bis = data.bis[mask]
+
     return data
 
 
@@ -453,6 +459,7 @@ def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning'):
         data : wyrm.types.Data
             subsetted data
     """
+    # TODO: Handle drop_perc == None
     dat = data.data.copy()
     bis = data.bis.copy()
     axes = data.axes.copy()
@@ -465,6 +472,14 @@ def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning'):
         bis = bis[new_idx]
         axes[0] = axes[0][new_idx]
         subj_id = subj_id[new_idx]
+
+    data.data = dat
+    data.bis = bis
+    data.axes = axes
+    data.subj_id = subj_id
+
+    dat = data.data.copy()
+    subj_id = data.subj_id.copy()
 
     if drop_perc:
         if drop_from not in ['beginning', 'end']:
@@ -490,7 +505,7 @@ def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning'):
         data = select_epochs(data, indices=idx_to_keep)
         data.subj_id = data.subj_id[idx_to_keep]
 
-        return data
+    return data
 
 
 def create_fvs(data):
