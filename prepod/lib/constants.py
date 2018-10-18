@@ -10,11 +10,12 @@ FORMATS = {
 
 # Frequency bands
 FREQ_BANDS = {
+    'total': (.1, 63.99),  # upper limit 64 because srate is 128
     'delta': (.1, 3.99),
     'theta': (4, 7.99),
     'alpha': (8, 12.99),
     'beta': (13, 29.99),
-    'gamma': (30, 64)  # upper limit 64 because srate is 128
+    'gamma': (30, 63.99)
 }
 
 # Plot Styling
