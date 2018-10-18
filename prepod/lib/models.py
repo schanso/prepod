@@ -4,6 +4,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.svm import SVC, LinearSVC
 from wyrm.types import Data
 
+import prepod.lib.constants as const
 import prepod.lib.prep as prep
 
 
@@ -129,11 +130,14 @@ def train_test_cv(data, n_leave_out=1, idx=0):
     """
     # Subjects to exclude
     unique_subj = np.unique(data.subj_id)
-    leave_out_ind = [idx + el for el in range(n_leave_out)]
-    if idx + n_leave_out > len(unique_subj):
-        leave_out_ind = [el if el < len(unique_subj) else el - len(unique_subj)
-                         for el in leave_out_ind]
-    leave_out_subj = unique_subj[leave_out_ind]
+    leave_out_subj = [unique_subj[idx]]
+
+    if n_leave_out > 1:
+        info = list(set(list(zip(data.subj_id, data.axes[0]))))
+        subj_label = [el[1] for el in info if el[0] == leave_out_subj[0]][0]
+        combine_with = [el[0] for el in info if el[1] != subj_label]
+        np.random.shuffle(combine_with)
+        leave_out_subj.append(combine_with[0])
 
     # Subset data
     idx_train = np.where(~np.isin(data.subj_id, leave_out_subj))
@@ -151,10 +155,9 @@ def train_test_cv(data, n_leave_out=1, idx=0):
 
     # Equalize proportions in test data
     n_classes = len(np.unique(y_test))
-    if n_classes > 1:
-        idx_equalized = equalize_proportions(labels=y_test, n_classes=n_classes)
-        X_test = X_test[idx_equalized, :].squeeze()
-        y_test = y_test[idx_equalized]
+    idx_equalized = equalize_proportions(labels=y_test, n_classes=n_classes)
+    X_test = X_test[idx_equalized, :].squeeze()
+    y_test = y_test[idx_equalized]
 
     ax_train = data.axes[:]
     ax_train[0] = y_train
@@ -165,7 +168,7 @@ def train_test_cv(data, n_leave_out=1, idx=0):
     dat_train = data.copy(data=X_train, axes=ax_train, names=names, units=units)
     dat_test = data.copy(data=X_test, axes=ax_test, names=names, units=units)
 
-    return dat_train, dat_test
+    return dat_train, dat_test, leave_out_subj
 
 
 def lda(data_train, data_test, solver='lsqr', shrinkage=True):
