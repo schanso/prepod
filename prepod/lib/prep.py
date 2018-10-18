@@ -546,8 +546,14 @@ def create_fvs(data):
     return data.copy(data=dat, axes=axes, names=names, units=units)
 
 
-def apply_csp(data):
+def apply_csp(data, return_as='filtered', time_axis=1):
     """Calculates and applies CSP"""
     w, a, d = calculate_csp(data)
-    return apply_spatial_filter(data, w)
+    filtered = apply_spatial_filter(data, w)
+    if return_as == 'logvar':
+        filtered.data = np.log(np.var(filtered.data, axis=time_axis))
+        filtered.axes[1] = np.arange(filtered.data.shape[0])
+        return filtered
+    else:
+        return filtered
 
