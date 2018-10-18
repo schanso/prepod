@@ -105,7 +105,7 @@ def train_test(data, test_size):
     return dat_train, dat_test
 
 
-def train_test_cv(data, leave_out=0):
+def train_test_cv(data, n_leave_out=1, idx=0):
     """Splits data into train and test according to LOOCV
 
     Leave-one-subject-out cross validation where n-1 subjects are used
@@ -127,10 +127,17 @@ def train_test_cv(data, leave_out=0):
         dat_test : wyrm.Data
             Data object holding test data
     """
+    # Subjects to exclude
     unique_subj = np.unique(data.subj_id)
-    leave_out_subj = unique_subj[leave_out]
-    idx_train = np.where(data.subj_id != leave_out_subj)
-    idx_test = np.where(data.subj_id == leave_out_subj)
+    leave_out_ind = [idx + el for el in range(n_leave_out)]
+    if idx + n_leave_out > len(unique_subj):
+        leave_out_ind = [el if el < len(unique_subj) else el - len(unique_subj)
+                         for el in leave_out_ind]
+    leave_out_subj = unique_subj[leave_out_ind]
+
+    # Subset data
+    idx_train = np.where(~np.isin(data.subj_id, leave_out_subj))
+    idx_test = np.where(np.isin(data.subj_id, leave_out_subj))
     X_train = data.data[idx_train, :].squeeze()
     X_test = data.data[idx_test, :].squeeze()
     y_train = data.axes[0][idx_train]
@@ -141,6 +148,13 @@ def train_test_cv(data, leave_out=0):
     idx_equalized = equalize_proportions(labels=y_train, n_classes=n_classes)
     X_train = X_train[idx_equalized, :].squeeze()
     y_train = y_train[idx_equalized]
+
+    # Equalize proportions in test data
+    n_classes = len(np.unique(y_test))
+    if n_classes > 1:
+        idx_equalized = equalize_proportions(labels=y_test, n_classes=n_classes)
+        X_test = X_test[idx_equalized, :].squeeze()
+        y_test = y_test[idx_equalized]
 
     ax_train = data.axes[:]
     ax_train[0] = y_train
