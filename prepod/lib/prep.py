@@ -1,72 +1,11 @@
 import numpy as np
 import pandas as pd
 from scipy.signal import butter, lfilter, iirnotch
-from wyrm.processing import append as wyrm_append, calculate_csp, segment_dat, append_epo, select_epochs
+from wyrm.processing import append as wyrm_append, segment_dat, select_epochs
 from wyrm.types import Data
 
 import prepod.lib.constants as const
-from prepod.lib.io import read_bis
-
-
-def to_feature_vector(data, names=('class', 'amplitude'), units=('#', 'µV')):
-    """Creates a 2D feature vector from 3D `wyrm.Data` object
-
-    Epoched data is stored as 3D obj in wyrm (labels, samples, channels),
-    most machine learning toolboxes (incl. wyrm), however, need 2D
-    representations of the data (labels, (samples * channels)).
-
-    Params
-    ------
-        data : wyrm.Data
-            Data object with 3D axes
-        names : iterable of str
-            names for 2D data representation
-        units : iterable of str
-            units for 2D data representation
-
-    Returns
-    -------
-        data : wyrm.Data
-            Data object with 2D axes
-
-    See also
-    --------
-        :type: wyrm.Data
-    """
-    if not isinstance(names, list):
-        names = list(names)
-    if not isinstance(units, list):
-        units = list(units)
-
-    n_epochs = data.data.shape[0]
-    n_samples = data.data.shape[1]
-    n_chans = data.data.shape[2]
-    ax = [data.axes[0], np.linspace(0, 1, len(data.axes[1]) * n_chans)]
-    fs = data.fs
-    try:
-        bis = data.bis
-    except AttributeError:
-        bis = None
-
-    dat = data.data.reshape((n_epochs, n_samples * n_chans))
-    data = Data(data=dat, axes=ax, names=names, units=units)
-    data.fs = fs
-    data.bis = bis
-
-    return data
-
-
-def create_fvs(data):
-    """"""
-    dat = data.data.reshape((data.axes[0].shape[0], -1))
-    axes = data.axes[:2]
-    axes[-1] = np.arange(data.data.shape[-1])
-    names = data.names[:2]
-    names[-1] = 'feature_vector'
-    units = data.units[:2]
-    units[-1] = 'dl'
-
-    return data.copy(data=dat, axes=axes, names=names, units=units)
+import prepod.lib.io as io
 
 
 def detect_bads(x, srate, corr_threshold=0.4, window_width=1,
@@ -263,132 +202,6 @@ def filter_raw(raw, srate, h_pass=True, l_pass=True, l_cutoff=1, h_cutoff=100,
     return filt
 
 
-def align_bis(path_signal, path_bis):
-    """"""
-    # TODO: Align on ms instead of s? Align on every BIS value (Time stamp)
-    # TODO: Drop where time jump in BIS >> 1s?
-    # TODO: Find 'drop post-BIS EEG' bug
-    if not isinstance(path_signal, str):
-        msg = 'Please provide file path as str, got {}'.format(type(path_signal))
-        raise TypeError(msg)
-
-    data = np.load(file=path_signal).flatten()[0]
-    bis = read_bis(path_bis)
-    fs_eeg = data.fs
-    eeg_start = data.starttime
-    bis_start = bis['SystemTime'].iloc[0]
-    bis_end = bis['SystemTime'].iloc[bis.shape[0]-1]
-    bis['t_delta'] = bis['SystemTime'].diff().apply(lambda x: x.total_seconds())
-
-    # drop samples pre-BIS recording
-    time_delta = bis_start-eeg_start
-    time_delta_s = time_delta.days * 24 * 3600 + time_delta.seconds
-
-    if time_delta_s < 0:  # drop bis vals if start before eeg start
-        bis = bis.drop(bis[bis['SystemTime'] < eeg_start].index)
-        bis.reset_index(inplace=True)
-        bis_start = bis['SystemTime'].iloc[0]
-        time_delta = bis_start - eeg_start
-        time_delta_s = time_delta.days * 24 * 3600 + time_delta.seconds
-
-    new_start = int(time_delta_s * fs_eeg)
-    data.data = data.data[new_start:]
-
-    # drop samples post-BIS recording
-    bis_values = np.array(bis['BIS'])
-    time_delta = bis_end - bis_start
-    time_delta_s = time_delta.days * 24 * 3600 + time_delta.seconds
-    n_samples = int(time_delta_s * fs_eeg)
-    data.data = data.data[:n_samples]
-    eeg_dur = data.data.shape[0] / fs_eeg
-
-    # create array of BIS vals, one per sample in the EEG
-    t_deltas = np.append(np.delete(np.array(bis['t_delta']), 0), 0)
-    n_repeats = np.nan_to_num(t_deltas * fs_eeg, copy=True).astype('int')
-    bis_values = np.repeat(bis_values, n_repeats)  # one bis val per sample in eeg
-    bis_values = bis_values[:data.data.shape[0]]  # drop post-EEG BIS
-    data.data = data.data[:bis_values.shape[0]]  # drop post-BIS EEG
-    data.fs = fs_eeg
-
-    print('Successfully aligned {} with BIS values.'.format(
-        path_signal.split('/')[-1]
-    ))
-
-    return data, bis_values
-
-
-def split_into_wins(data, bis_values, win_length=5, bis_crit=None, keep_proportion=None):
-    """Splits continuous signal into windows of variable length
-
-    Params
-    ------
-        data : `Data`
-            continuous signal
-        bis_values : ndArray
-            data-aligned BIS values
-        win_length : int
-            length of window in seconds
-        bis_crit : int
-            drop window if at least one sample is associated with a BIS
-            value above critical level
-        keep_proportion : float
-            if not None, must be between 0 and 1; indicates the
-            proportion of the data that should be kept, evaluated from
-            the end, i. e. 0.33 -> keep only last third of the data,
-            0.5 -> keep second half
-
-    Returns
-    -------
-        data : `Data`
-            chunked data
-        bis_values : ndArray
-            chuned BIS values
-
-    See also
-    --------
-        :func: align_bis
-    """
-    fs_eeg = data.fs
-
-    # keep only proportion of the data (counted from the end)
-    if keep_proportion:
-        n_samples_to_keep = int(np.floor(data.data.shape[0]*keep_proportion))
-        data.data = data.data[-n_samples_to_keep:]
-        bis_values = bis_values[-n_samples_to_keep:]
-
-    # cut into windows of variable length
-    win_samples = win_length * fs_eeg
-    n_wins = np.floor(data.data.shape[0] / win_samples)
-    new_start = int(data.data.shape[0] - (n_wins * win_samples))
-    data.data = data.data[new_start:]
-    bis_values = bis_values[new_start:]
-
-    chunks_data = np.array(np.split(data.data, n_wins))
-    chunks_bis = np.array(np.split(bis_values, n_wins))
-
-    # drop windows with at least one NA BIS value
-    new_idx = np.where(np.all(~np.isnan(chunks_bis), axis=1))
-    chunks_data = chunks_data[new_idx]
-    chunks_bis = chunks_bis[new_idx]
-
-    # only keep windows where BIS <= bis_crit
-    if bis_crit:
-        new_idx = np.where(np.all(chunks_bis <= bis_crit, axis=1))
-        chunks_data = chunks_data[new_idx]
-        chunks_bis = chunks_bis[new_idx]
-
-    # to Data
-    time_points = np.linspace(0, win_length, win_samples)
-    axes = [np.arange(chunks_data.shape[0]), time_points, data.axes[1]]
-    names = ['epoch', 'time', 'channels']
-    units = ['#', 's', 'µV']
-    data = Data(data=chunks_data, axes=axes, names=names, units=units)
-    data.fs = fs_eeg
-    data.bis = chunks_bis
-
-    return data
-
-
 def append_subj_id(data, subj_id):
     """Appends subj_id to epoched `Data` object"""
     if not isinstance(data, Data):
@@ -398,8 +211,73 @@ def append_subj_id(data, subj_id):
     return np.repeat(subj_id, n_epochs)
 
 
-def merge_subjects(l, path_out=None, feature_vector=False):
+def create_markers(data, win_length):
+    """Creates markers of arbitrary name to later segment the data
+
+    Params
+    ------
+        data : wyrm.Data
+            data object to create markers for
+        win_length : int
+            length of each epoch, later used for segmenting
+
+    Returns
+    -------
+        markers : list
+            list of lists, each holding timepoint and arbitrary name
+    """
+    timepoints = data.axes[0]
+    start = timepoints[0]
+    stop = timepoints[-1]
+    step = win_length*1000
+    markers = []
+    for idx in np.arange(start, stop, step):
+        markers.append([idx, 'M1'])
+    return markers
+
+
+def fetch_labels(path_labels, study, subj_id):
+    """Fetches label for a given subject
+
+    Params
+    ------
+        path_labels : str
+            path to CSV with label information
+        study : str
+            study to fetch labels for (see `constants` module for naming
+            conventions)
+        subj_id = list or str or int
+            subj_id(s) to fetch labels for
+
+    Returns
+    -------
+        labels : str or list of str
+            label as string for one, list of strings for multiple subj
+
+    See also
+    --------
+        :module: prepod.lib.constants
+    """
+    if not isinstance(subj_id, list):
+        subj_id = [subj_id]
+    subj_ids = [str(el) for el in subj_id]
+    with open(path_labels, 'r') as f:
+        dat = pd.read_csv(f, dtype='object')
+    name_subj_id = const.CSV_COLNAMES[study]['subj_id']
+    name_label = const.CSV_COLNAMES[study]['label']
+    labels_to_drop = [el for el in list(dat) if el not in [name_subj_id, name_label]]
+    dat = dat.drop(labels=labels_to_drop, axis=1)
+    dat = dat[dat[name_subj_id].isin(subj_ids)]
+    if dat.shape[0] == 1:
+        return str(dat[name_label].iloc[0])
+    else:
+        return list(dat[name_label])
+
+
+def merge_subjects(l, path_out=None):
     """Merges list of `Data` objects to one `Data` object
+
+    Mainly delegates the call to wyrm.proccessing.append
 
     Params
     ------
@@ -412,6 +290,11 @@ def merge_subjects(l, path_out=None, feature_vector=False):
     -------
         data : `Data` object
             merged data
+
+    See also
+    --------
+        :type: wyrm.types.Data
+        :func: wyrm.processing.append
     """
     if not isinstance(l, list):
         msg = 'Please provide list of `Data` objects to merge, got {}'.format(
@@ -440,54 +323,29 @@ def merge_subjects(l, path_out=None, feature_vector=False):
     return data
 
 
-def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning'):
-    """"""
-    dat = data.data.copy()
-    bis = data.bis.copy()
-    axes = data.axes.copy()
-    subj_id = data.subj_id.copy()
-
-    # only keep windows where BIS <= bis_crit
-    if bis_crit:
-        new_idx = np.where(np.all(bis <= bis_crit, axis=1))
-        dat = dat[new_idx]
-        bis = bis[new_idx]
-        axes[0] = axes[0][new_idx]
-        subj_id = subj_id[new_idx]
-
-    if drop_perc:
-        if drop_from not in ['beginning', 'end']:
-            msg = 'drop_from must be one of \'beginning\', \'end\'.'
-            raise ValueError(msg)
-
-        unique_subj_ids = np.unique(subj_id)
-        idx_to_keep = []
-        for subj in unique_subj_ids:
-            idx_subj = np.where(subj_id == subj)[0]
-            data_subset = dat[idx_subj, :, :].squeeze()
-            n_epochs = data_subset.shape[0]
-            n_samples_per_epoch = data_subset.shape[1]
-            n_samples = n_epochs * n_samples_per_epoch
-            n_samples_to_drop = drop_perc * n_samples
-            n_epochs_to_drop = int(np.floor(n_samples_to_drop/n_samples_per_epoch))
-            if drop_from == 'beginning':
-                idx_to_keep.append(idx_subj[n_epochs_to_drop:])
-            else:
-                idx_to_keep.append(idx_subj[:-n_epochs_to_drop])
-
-        idx_to_keep = np.concatenate(idx_to_keep).ravel()
-        data = select_epochs(data, indices=idx_to_keep)
-        data.subj_id = data.subj_id[idx_to_keep]
-
-        return data
-
-
 def match_bis(data, path_bis):
-    """"""
+    """Matches each sample in `data` with a corresponding BIS value
+
+    Will match at start and end of each recording, thus drops samples
+    before both EEG or BIS have started and after one of them has
+    finished.
+
+    Params
+    ------
+        data : wyrm.types.Data
+            data to merge BIS with
+        path_bis : str
+            path to BIS dir
+
+    Returns
+    -------
+        data : wyrm.types.Data
+            updated data object with attribute data.bis
+    """
     # TODO: Align on ms instead of s? Align on every BIS value (Time stamp)
     # TODO: Drop where time jump in BIS >> 1s?
     # TODO: Find 'drop post-BIS EEG' bug
-    bis = read_bis(path_bis)
+    bis = io.read_bis(path_bis)
     fs_eeg = data.fs
     eeg_start = data.starttime
     bis_start = bis['SystemTime'].iloc[0]
@@ -533,38 +391,27 @@ def match_bis(data, path_bis):
     return data
 
 
-def create_markers(data, win_length):
-    """"""
-    timepoints = data.axes[0]
-    start = timepoints[0]
-    stop = timepoints[-1]
-    step = win_length*1000
-    markers = []
-    for idx in np.arange(start, stop, step):
-        markers.append([idx, 'M1'])
-    return markers
-
-
-def fetch_labels(path_labels, study, subj_id):
-    """"""
-    if not isinstance(subj_id, list):
-        subj_id = [subj_id]
-    subj_ids = [str(el) for el in subj_id]
-    with open(path_labels, 'r') as f:
-        dat = pd.read_csv(f, dtype='object')
-    name_subj_id = const.CSV_COLNAMES[study]['subj_id']
-    name_label = const.CSV_COLNAMES[study]['label']
-    labels_to_drop = [el for el in list(dat) if el not in [name_subj_id, name_label]]
-    dat = dat.drop(labels=labels_to_drop, axis=1)
-    dat = dat[dat[name_subj_id].isin(subj_ids)]
-    if dat.shape[0] == 1:
-        return str(dat[name_label].iloc[0])
-    else:
-        return list(dat[name_label])
-
-
 def segment_data(data, win_length):
-    """"""
+    """Splits continuous signal into windows of variable length
+
+    Mainly delegates the call to `wyrm.processing.segment_dat`.
+
+    Params
+    ------
+        data : `Data`
+            continuous signal
+        win_length : int
+            length of window in seconds
+
+    Returns
+    -------
+        data : `Data`
+            chunked data
+
+    See also
+    --------
+        :func: wyrm.processing.segment_dat
+    """
     label = data.label
     if not isinstance(label, str):
         label = str(label)
@@ -582,7 +429,98 @@ def segment_data(data, win_length):
     return data
 
 
-def calc_csp(data):
-    """"""
-    pass
+def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning'):
+    """Subsets an epoched Data object by BIS value and intra-OP time
+
+    It might be useful to only look at data aligned with critical BIS
+    values (e. g., BIS < 60) or only the second half of the OP.
+
+    Params
+    ------
+        data : wyrm.types.Data
+            epoched data to subset
+        bis_crit : int
+            critical BIS value, drop all epochs with BIS > `bis_crit`
+        drop_perc : float
+            percentage of OP to be dropped
+        drop_from : str
+            if drop_perc is passed, will drop from beginning or end of OP
+            * 'beginning': drop from beginning
+            * 'end': drop from end
+
+    Returns
+    -------
+        data : wyrm.types.Data
+            subsetted data
+    """
+    dat = data.data.copy()
+    bis = data.bis.copy()
+    axes = data.axes.copy()
+    subj_id = data.subj_id.copy()
+
+    # only keep windows where BIS <= bis_crit
+    if bis_crit:
+        new_idx = np.where(np.all(bis <= bis_crit, axis=1))
+        dat = dat[new_idx]
+        bis = bis[new_idx]
+        axes[0] = axes[0][new_idx]
+        subj_id = subj_id[new_idx]
+
+    if drop_perc:
+        if drop_from not in ['beginning', 'end']:
+            msg = 'drop_from must be one of \'beginning\', \'end\'.'
+            raise ValueError(msg)
+
+        unique_subj_ids = np.unique(subj_id)
+        idx_to_keep = []
+        for subj in unique_subj_ids:
+            idx_subj = np.where(subj_id == subj)[0]
+            data_subset = dat[idx_subj, :, :].squeeze()
+            n_epochs = data_subset.shape[0]
+            n_samples_per_epoch = data_subset.shape[1]
+            n_samples = n_epochs * n_samples_per_epoch
+            n_samples_to_drop = drop_perc * n_samples
+            n_epochs_to_drop = int(np.floor(n_samples_to_drop/n_samples_per_epoch))
+            if drop_from == 'beginning':
+                idx_to_keep.append(idx_subj[n_epochs_to_drop:])
+            else:
+                idx_to_keep.append(idx_subj[:-n_epochs_to_drop])
+
+        idx_to_keep = np.concatenate(idx_to_keep).ravel()
+        data = select_epochs(data, indices=idx_to_keep)
+        data.subj_id = data.subj_id[idx_to_keep]
+
+        return data
+
+
+def create_fvs(data):
+    """Creates 2D feature vectors from 3D Data object
+
+    Epoched data is stored as 3D obj in wyrm (labels, samples, channels),
+    most machine learning toolboxes (incl. wyrm), however, need 2D
+    representations of the data (labels, samples * channels).
+
+    Params
+    ------
+        data : wyrm.Data
+            Data object with 3D axes
+
+    Returns
+    -------
+        data : wyrm.Data
+            Data object with 2D axes
+
+    See also
+    --------
+        :type: wyrm.Data
+    """
+    dat = data.data.reshape((data.axes[0].shape[0], -1))
+    axes = data.axes[:2]
+    axes[-1] = np.arange(data.data.shape[-1])
+    names = data.names[:2]
+    names[-1] = 'feature_vector'
+    units = data.units[:2]
+    units[-1] = 'dl'
+
+    return data.copy(data=dat, axes=axes, names=names, units=units)
 
