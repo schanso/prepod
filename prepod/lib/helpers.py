@@ -1,12 +1,12 @@
 import os
 
-from prepod.lib.constants import KNOWN_ERRORS, FORMATS
+import prepod.lib.constants as const
 
 
 def fix_known_errors(d):
     """"""
-    if d['subj_id'] in KNOWN_ERRORS.keys():
-        exec(KNOWN_ERRORS[d['subj_id']])
+    if d['subj_id'] in const.KNOWN_ERRORS.keys():
+        exec(const.KNOWN_ERRORS[d['subj_id']])
     return d
 
 
