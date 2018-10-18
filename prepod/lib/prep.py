@@ -314,6 +314,7 @@ def merge_subjects(l, path_out=None):
             data = el
         else:
             data = wyrm_append(data, el, extra=['bis', 'subj_id', 'markers'])
+        print('Merged set {}/{}'.format(idx+1, len(l)))
 
     if path_out:
         print('Saving...')
