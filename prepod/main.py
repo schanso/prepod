@@ -2,6 +2,7 @@ import numpy as np
 import os
 
 import prepod.lib.prep as prep
+import prepod.lib.io as io
 from prepod.lib.io import return_fnames, parse_raw, import_targets
 from prepod.lib.constants import (COLNAME_SUBJID_SUDOCU, COLNAME_TARGET_SUDOCU,
                                   EXCLUDE_SUBJ)
@@ -71,14 +72,14 @@ for subj_id in subj_ids:
     print('Successfully wrote data to ' + path_out)
 
 
-# # LOAD SUBJ DATA, APPEND LABELS, MERGE
+# LOAD SUBJ DATA, APPEND LABELS, MERGE
 
 datasets = []
 for subj_id in subj_ids:
     curr_fname = return_fnames(dir_in=dir_signal, substr=subj_id)
     path_signal = '{}/{}'.format(dir_signal, return_fnames(dir_in=dir_signal, substr=subj_id))
     path_bis = dir_bis + subj_id + '/'
-    data = np.load(file=path_signal).flatten()[0]
+    data = io.load_wyrm(path=path_signal)
     data.markers = prep.create_markers(data, win_length)
     data.label = prep.fetch_labels(path_labels, study, subj_id)
     data = prep.match_bis(data, path_bis)
@@ -90,8 +91,7 @@ merge_subjects(datasets, path_out=path_out_merged)
 
 # CLASSIFICATION (VANILLA LDA + SVM)
 
-data = np.load(file=path_out_merged).flatten()[0]
-print('Done loading')
+data = io.load_wyrm(path=path_out_merged)
 data = prep.subset_data(data, bis_crit=bis_crit, drop_perc=drop_perc, drop_from='end')
 data = prep.create_fvs(data)
 tot = {'lda': [], 'svm': []}
