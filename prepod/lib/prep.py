@@ -296,6 +296,7 @@ def merge_subjects(l, path_out=None):
         :type: wyrm.types.Data
         :func: wyrm.processing.append
     """
+    import sys
     if not isinstance(l, list):
         msg = 'Please provide list of `Data` objects to merge, got {}'.format(
             str(type(l))
@@ -314,16 +315,17 @@ def merge_subjects(l, path_out=None):
             data = el
         else:
             data = wyrm_append(data, el, extra=['bis', 'subj_id', 'markers'])
-        print('Merged set {}/{}'.format(idx+1, len(l)))
 
-        # It obviously is more expensive to write to file on each iteration,
-        # However, once the data is too large, write will fail and all data will
-        # be lost. Saving on each iteration is a lazy workaround.
-        # TODO: Test for size, write to file _once_ (before too large)
-        if path_out:
-            print('Saving...')
-            np.save(path_out, arr=data)
-            print('Saved.')
+        print('Merged set {}/{}'.format(idx+1, len(l)))
+        size = sys.getsizeof(data.data)
+        print('Size in MB: {:.3f}'.format(size/1e6))
+
+    # Save as pickled because file size might be (well) over 4 GB
+    if path_out:
+        try:
+            io.save_as_pickled(data=data, path_out=path_out)
+        except Exception:
+            print('Unable to save data.')
 
     return data
 
