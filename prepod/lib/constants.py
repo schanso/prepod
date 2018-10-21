@@ -10,8 +10,8 @@ FORMATS = {
 
 # Frequency bands
 FREQ_BANDS = {
-    'total': (.1, 63.9),  # upper limit 64 because srate is 128
-    'delta': (.1, 3.9),
+    'total': (.5, 63.9),  # upper limit 64 because srate is 128
+    'delta': (.5, 3.9),
     'theta': (4, 7.9),
     'alpha': (8, 12.9),
     'beta': (13, 29.9),
