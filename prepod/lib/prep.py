@@ -447,7 +447,7 @@ def segment_data(data, win_length):
     return data
 
 
-def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning'):
+def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning', subj_ids=None):
     """Subsets an epoched Data object by BIS value and intra-OP time
 
     It might be useful to only look at data aligned with critical BIS
@@ -472,6 +472,12 @@ def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning'):
             subsetted data
     """
     # TODO: Handle drop_perc == None
+    if subj_ids:
+        if (not isinstance(subj_ids, np.ndarray)
+                and not isinstance(subj_ids, list)):
+            msg = 'When passing `subj_ids`, have to pass list or np.ndarray.'
+            raise TypeError(msg)
+
     dat = data.data.copy()
     bis = data.bis.copy()
 
@@ -517,6 +523,14 @@ def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning'):
         idx_to_keep = np.concatenate(idx_to_keep).ravel()
         data = select_epochs(data, indices=idx_to_keep)
         data.subj_id = data.subj_id[idx_to_keep]
+
+    if subj_ids:
+        mask = np.isin(data.subj_id, subj_ids)
+        data.subj_id = data.subj_id[mask]
+        dat = data.data.compress(mask, 0)  # classaxis is 0
+        axes = data.axes[:]
+        axes[0] = data.axes[0].compress(mask)
+        data = data.copy(data=dat, axes=axes)
 
     return data
 
