@@ -270,13 +270,11 @@ def load_pickled(path_in):
     """Loads pickled even if file is > 4 GB"""
     max_bytes = 2**31 - 1
     input_size = os.path.getsize(path_in)
-    total_steps = int(np.ceil(input_size/max_bytes))
     bytes_in = bytearray(0)
+    print('Loading...')
     with open(path_in, 'rb') as f_in:
-        print('Loading...')
-        for step in range(0, input_size, max_bytes):
+        for _ in range(0, input_size, max_bytes):
             bytes_in += f_in.read(max_bytes)
-            print('{}/{}'.format(step+1, total_steps))
     data = pickle.loads(bytes_in)
     print('Successfully loaded data from {}.'.format(path_in))
     return data
