@@ -16,7 +16,9 @@ FREQ_BANDS = {
     'theta': (4, 7.9),
     'alpha': (8, 12.9),
     'beta': (13, 29.9),
-    'gamma': (30, 63.9)
+    'gamma': (30, 63.9),
+    'below20': (.1, 19.9),
+    'below50': (.1, 49.9)
 }
 
 # Plot Styling
