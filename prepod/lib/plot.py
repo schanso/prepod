@@ -100,3 +100,36 @@ def plot_raw_vs_filt(raw, filt, n_sec, t0=60, show=True):
     if show:
         plt.show()
 
+
+def plot_accuracies(x, y, lcut, hcut, path_out=None, bis_crit=None, drop_perc=None, drop_from=None, show=True):
+    """"""
+    n_runs = len(x)
+    mean, std = np.mean(y), np.std(y)
+    fig, ax = plt.subplots(figsize=(20, 10), nrows=1, ncols=1)
+    styles = plot_set_styles(ax)
+    ax.bar(x, y, color=PLOT_STYLING['c'][-1], **styles)
+    # ax.plot((x[0], x[-1]), (mean,mean), c=PLOT_STYLING['c'][1])
+    # props = {
+    #     # 'xticks': np.arange(n_sec + 1),
+    #     # 'xticklabels': np.arange(t0, t0 + n_sec + 1),
+    #     'xlabel': 'left out',
+    #     'ylabel': 'acc'
+    # }
+    # plot_set_props(ax, props)
+    ax.set_ylim([0, 1])
+    ax.set_xlabel('Left out', fontsize=15)
+    ax.set_xticklabels(x, rotation=270)
+    ax.set_ylabel('Acc.', fontsize=15)
+    plt.suptitle('Prediction accuracies from leave-two-subjects-out CV', fontsize=20)
+    plt.title(('Bandpass-filtered at {}/{} Hz, '
+              + 'mean over all {} combinations: {:.3f} ({:.3f} std).\n'
+              + 'BIS-cutoff: {}, dropped: {} from {}').format(
+        lcut, hcut, n_runs, mean, std, bis_crit, drop_perc, drop_from
+    ), fontsize=15)
+
+    if path_out:
+        plt.savefig(path_out, bbox_inches='tight')
+
+    if show:
+        plt.show()
+
