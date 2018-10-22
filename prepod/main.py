@@ -6,6 +6,7 @@ import prepod.lib.constants as const
 import prepod.lib.helpers as hlp
 import prepod.lib.io as io
 import prepod.lib.models as models
+import prepod.lib.plot as plot
 import prepod.lib.prep as prep
 
 
@@ -13,7 +14,7 @@ import prepod.lib.prep as prep
 
 study = 'Sudocu'
 region = 'frontal'
-freq_band = 'total'
+freq_band = 'slow'
 lcut, hcut = const.FREQ_BANDS[freq_band]
 
 test_size = .5
@@ -54,7 +55,7 @@ path_out_merged = '{}/{}'.format(dir_signal, fname_merged)
 fnames_raw = hlp.return_fnames(dir_in=dir_raw)
 subj_ids = sorted(list(set([el.split('_')[0] for el in fnames_raw])))
 subj_ids = [el for el in subj_ids if el not in const.EXCLUDE_SUBJ]
-subj_ids = [el for el in subj_ids if int(el) <= 2347]
+# subj_ids = [el for el in subj_ids if int(el) <= 2347]
 
 
 # PARSE RAW FILES, FILTER, STORE AS NPY
@@ -64,7 +65,7 @@ for subj_id in subj_ids:
     path_out = '{}/{}/{}.npy'.format(dir_out_filtered, freq_band, subj_id)
     data = io.parse_raw(path_in=path_in, ftype='edf', region=region)
     filtered = prep.filter_raw(data, srate=data.fs, l_cutoff=lcut, h_cutoff=hcut)
-    io.save_as_npy(data=filtered, path=path_out)
+    io.save_as_npy(data=filtered, path_out=path_out)
 
 
 # LOAD SUBJ DATA, APPEND LABELS, MERGE
@@ -74,7 +75,7 @@ for subj_id in subj_ids:
     curr_fname = hlp.return_fnames(dir_in=dir_signal, substr=subj_id)
     path_signal = '{}/{}'.format(dir_signal, hlp.return_fnames(dir_in=dir_signal, substr=subj_id))
     path_bis = dir_bis + subj_id + '/'
-    data = io.load_wyrm(path=path_signal)
+    data = io.load_wyrm(path_in=path_signal)
     data.markers = prep.create_markers(data, win_length)
     data.label = prep.fetch_labels(path_labels, study, subj_id)
     data = prep.match_bis(data, path_bis)
@@ -86,21 +87,28 @@ prep.merge_subjects(datasets, path_out=path_out_merged)
 
 # CLASSIFICATION (VANILLA LDA + SVM)
 
-data = io.load_wyrm(path=path_out_merged)
-data = prep.subset_data(data, bis_crit=bis_crit, drop_perc=drop_perc, drop_from=drop_from)
+data = io.load_pickled(path_in=path_out_merged)
+subj_ids = [el for el in subj_ids if int(el) <= 2347]
+data = prep.subset_data(data, bis_crit=bis_crit, drop_perc=drop_perc, drop_from=drop_from)#, subj_ids=subj_ids)
 data = prep.apply_csp(data, return_as='logvar')
 data = prep.create_fvs(data)
 
-acc_all_runs = []
+x, acc_all_runs = [], []
+print('Start training on subjects: {}'.format(', '.join(subj_ids)))
 for i in range(len(subj_ids)):
     data_train, data_test, left_out = models.train_test_cv(data, n_leave_out=n_leave_out, idx=i)
     # acc = models.lda(data_train=data_train, data_test=data_test, solver=solver, shrinkage=shrink)
     acc = models.svm(data_train, data_test, kernel=kernel)
     acc_all_runs.append(acc)
+    x.append(', '.join(left_out))
 
     print('Run {}/{}: {:.3f} (left out: {})'.format(
         i+1, len(subj_ids), acc, left_out))
 
 print('Mean over all runs: {} (std: {})'.format(
     np.mean(acc_all_runs), np.std(acc_all_runs)))
+path_out_fig = '{}/{}_subset.png'.format(dir_signal, freq_band)
+plot.plot_accuracies(x, acc_all_runs, lcut=lcut, hcut=hcut, path_out=path_out_fig, bis_crit=bis_crit, drop_perc=drop_perc, drop_from=drop_from, show=False)
+path_out_fig = '{}/{}_subset.svg'.format(dir_signal, freq_band)
+plot.plot_accuracies(x, acc_all_runs, lcut=lcut, hcut=hcut, path_out=path_out_fig, bis_crit=bis_crit, drop_perc=drop_perc, drop_from=drop_from, show=False)
 
