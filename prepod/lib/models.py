@@ -1,10 +1,12 @@
+import itertools
+
 import numpy as np
+import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.svm import SVC, LinearSVC
 from wyrm.types import Data
 
-import prepod.lib.constants as const
 import prepod.lib.prep as prep
 
 
@@ -243,4 +245,48 @@ def svm(data_train, data_test, n_samples=None, kernel='linear'):
     clf.fit(X, y)
     pred = clf.predict(X_)
     return np.mean(pred == y_)
+
+
+def process_subset(X, y, clf, n_iterations=10):
+    """"""
+    acc = []
+    for _ in np.arange(n_iterations):
+        X_train, X_test, y_train, y_test = train_test_info(X, y)
+        clf = clf.fit(X_train, y_train)
+        score = clf.score(X_test, y_test)
+        acc.append(score)
+    return {'mean_acc': np.mean(acc),
+            'std': np.std(acc),
+            'iterations': n_iterations,
+            'clf': clf}
+
+
+def forward_subset_selection(data, K, **kwargs):
+    """"""
+    # TODO: Clean up, implement k=1
+    results = []
+    for k in range(2, K+1):
+        if k == 2:
+            labels = data['X_labels']
+            combos = itertools.combinations(labels, k)
+            n_combos = len([el for el in combos])
+            combos = itertools.combinations(data['X_labels'], k)
+        else:
+            current_labels = np.setdiff1d(data['X_labels'], curr_best)
+            combos = (tuple(np.append(curr_best, el)) for el in current_labels)
+            n_combos = len([el for el in combos])
+            combos = (tuple(np.append(curr_best, el)) for el in current_labels)
+        for i, combo in enumerate(combos):
+            print('{}/{}'.format(i + 1, n_combos))
+            idx = np.where(np.in1d(data['X_labels'], combo))
+            X = data['X'][:, idx]
+            res = process_subset(X, data['y'], clf)
+            res.update({'features': combo, 'n_features':k})
+            results.append(res)
+        df = pd.DataFrame(results)
+        df = df[df['n_features'] == k]
+        df = df.sort_values(by='mean_acc', ascending=False)
+        df.reset_index(inplace=True)
+        curr_best = np.array(df.loc[0, 'features'])
+    return results
 
