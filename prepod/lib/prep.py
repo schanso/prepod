@@ -603,21 +603,15 @@ def drop_non_feature_cols(data, target):
     return data[keep]
 
 
-def to_fv(data, target_label, pk='subj_id', **kwargs):
+def to_fv(data, feature_labels, target_labels):
     """Takes df as input and returns dict of ndarrays"""
-    data = drop_if_too_many_nans(data, **kwargs)
-    data = drop_non_feature_cols(data, target_label)
-    features = list(data)
-    features.remove(pk)
-
-    X = np.array(data[features])
-    y = np.array(data[target_label])
+    X = np.array(data[feature_labels])
+    y = np.array(data[target_labels])
     data = {
-        'features': X,
-        'targets': y,
-        'labels_X': features,
-        'labels_y': target_label
+        'X': X,
+        'y': y,
+        'X_labels': np.array(feature_labels),
+        'y_labels': np.array(target_labels)
     }
-
     return data
 
