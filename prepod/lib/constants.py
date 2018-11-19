@@ -61,7 +61,7 @@ SUBJ_INFO_COLNAMES = {
     'Sudocu': [
         {'old_label': 'case_no', 'new_label': 'subj_id', 'dtype': 'object'},
         {'old_label': 'Geschlecht', 'new_label': 'gender', 'dtype': 'category'},
-        {'old_label': 'Age_in_years', 'new_label': 'age', 'dtype': 'int8'},
+        {'old_label': 'Age_in_years', 'new_label': 'age', 'dtype': 'float'},
         {'old_label': 'Nudesc_AWR_60min_Delir_ohne_Missings', 'new_label': 'delir_60min', 'dtype': 'category'},
         {'old_label': 'Nudesc_OP_Tag_Delir', 'new_label': 'delir_day1', 'dtype': 'category'},
         {'old_label': 'aufPropofol', 'new_label': 'med_auf_propofol', 'dtype': 'category'},
