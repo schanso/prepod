@@ -193,13 +193,13 @@ def train_test_info(X, y, test_size=.5):
     # Equalize proportions in training data
     n_classes = len(np.unique(y_train))
     idx_equalized = equalize_proportions(labels=y_train, n_classes=n_classes)
-    X_train = X_train[idx_equalized, :].squeeze()
+    X_train = X_train[idx_equalized, :]
     y_train = y_train[idx_equalized]
 
     # Equalize proportions in test data
     n_classes = len(np.unique(y_test))
     idx_equalized = equalize_proportions(labels=y_test, n_classes=n_classes)
-    X_test = X_test[idx_equalized, :].squeeze()
+    X_test = X_test[idx_equalized, :]
     y_test = y_test[idx_equalized]
 
     return X_train, X_test, y_train, y_test
@@ -263,30 +263,36 @@ def process_subset(X, y, clf, n_iterations=10):
 
 def forward_subset_selection(data, K, **kwargs):
     """"""
-    # TODO: Clean up, implement k=1
     results = []
-    for k in range(2, K+1):
-        if k == 2:
-            labels = data['X_labels']
-            combos = itertools.combinations(labels, k)
-            n_combos = len([el for el in combos])
-            combos = itertools.combinations(data['X_labels'], k)
+    curr_best = np.array([])
+    for k in range(3, K+1):
+        # Init with all possible three-fold combinations, then add to the best
+        current_labels = np.setdiff1d(data['X_labels'], curr_best)
+        if k == 3:
+            combos = itertools.combinations(current_labels, k)
+            n_combos = sum(1 for _ in combos)
+            combos = itertools.combinations(current_labels, k)
         else:
-            current_labels = np.setdiff1d(data['X_labels'], curr_best)
             combos = (tuple(np.append(curr_best, el)) for el in current_labels)
-            n_combos = len([el for el in combos])
-            combos = (tuple(np.append(curr_best, el)) for el in current_labels)
+            n_combos = len(current_labels)
+
+        # Train and test on each combo
         for i, combo in enumerate(combos):
             print('{}/{}'.format(i + 1, n_combos))
             idx = np.where(np.in1d(data['X_labels'], combo))
-            X = data['X'][:, idx]
+            X = data['X'][:, idx].squeeze()
+            if k == 1:
+                X = X.reshape(-1, 1)
             res = process_subset(X, data['y'], clf)
             res.update({'features': combo, 'n_features':k})
             results.append(res)
+
+        # Pass current best to use as base in next iteration
         df = pd.DataFrame(results)
         df = df[df['n_features'] == k]
         df = df.sort_values(by='mean_acc', ascending=False)
         df.reset_index(inplace=True)
         curr_best = np.array(df.loc[0, 'features'])
+
     return results
 
