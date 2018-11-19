@@ -586,3 +586,38 @@ def drop_na(data, cols):
         data = data[pd.notnull(data[col])]
     return data
 
+
+def drop_if_too_many_nans(data, threshold=.33):
+    """Drops column from df if it has too many NaN values"""
+    n_subjects = data.shape[0]
+    crit_nans_value = np.floor(n_subjects*threshold).astype(int)
+    keep = np.array(list(data))[(data.isna().sum() < crit_nans_value).values]
+    return data[keep]
+
+
+def drop_non_feature_cols(data, target):
+    """"""
+    keep = [el for el in list(data)
+            if 'delir' not in el and 'op' not in el  and 'has' not in el]
+    keep += [target]
+    return data[keep]
+
+
+def to_fv(data, target_label, pk='subj_id', **kwargs):
+    """Takes df as input and returns dict of ndarrays"""
+    data = drop_if_too_many_nans(data, **kwargs)
+    data = drop_non_feature_cols(data, target_label)
+    features = list(data)
+    features.remove(pk)
+
+    X = np.array(data[features])
+    y = np.array(data[target_label])
+    data = {
+        'features': X,
+        'targets': y,
+        'labels_X': features,
+        'labels_y': target_label
+    }
+
+    return data
+
