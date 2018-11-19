@@ -581,39 +581,8 @@ def apply_csp(data, return_as='filtered', time_axis=1):
 
 
 def drop_na(data, cols):
-    """Drops all rows that have at least one NaN value from df"""
+    """Drops rows with have at least one NaN value from df"""
     for col in cols:
         data = data[pd.notnull(data[col])]
     return data
-
-
-def train_test_info(X, y, test_size=.5):
-    """Splits features + target into train and test set (equal props)"""
-    # define train, test indices
-    idx = np.arange(X.shape[0])
-    n_test = np.ceil(idx.shape[0] * test_size).astype(int)
-    n_train = idx.shape[0] - n_test
-    np.random.shuffle(idx)
-    idx_train = idx[:n_train]
-    idx_test = idx[n_train:]
-
-    # split into train and test
-    X_train = np.array(X[idx_train])
-    X_test = np.array(X[idx_test])
-    y_train = np.array(y[idx_train])
-    y_test = np.array(y[idx_test])
-
-    # Equalize proportions in training data
-    n_classes = len(np.unique(y_train))
-    idx_equalized = mdl.equalize_proportions(labels=y_train, n_classes=n_classes)
-    X_train = X_train[idx_equalized, :].squeeze()
-    y_train = y_train[idx_equalized]
-
-    # Equalize proportions in test data
-    n_classes = len(np.unique(y_test))
-    idx_equalized = mdl.equalize_proportions(labels=y_test, n_classes=n_classes)
-    X_test = X_test[idx_equalized, :].squeeze()
-    y_test = y_test[idx_equalized]
-
-    return X_train, X_test, y_train, y_test
 
