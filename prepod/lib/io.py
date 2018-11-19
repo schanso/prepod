@@ -299,6 +299,34 @@ def save_as_pickled(data, path_out):
     print('Successfully wrote data to ' + path_out)
 
 
+def col_to_datetime(x):
+    """Uses date column to update start/end time to datetime object"""
+    try:
+        return x[0] + pd.DateOffset(hours=int(x[1].split(':')[0]),
+                                    minutes=int(x[1].split(':')[1]))
+    except AttributeError:
+        return x
+
+
+def time_delta(x):
+    """Substracts one time col from another and returns duration in h"""
+    try:
+        return pd.Timedelta(x[1] - x[0]).seconds / 60.0
+    except (TypeError, AttributeError):
+        return np.nan
+
+
+def parse_time_cols(data):
+    """Parses datetime columns in subject info df"""
+    data['op_starttime'] = data[['op_date', 'op_starttime']].apply(
+        col_to_datetime, axis=1)
+    data['op_endtime'] = data[['op_date', 'op_endtime']].apply(
+        col_to_datetime, axis=1)
+    data['op_duration'] = data[['op_starttime', 'op_endtime']].apply(
+        time_delta, axis=1)
+    return data
+
+
 def load_subj_info(path_in):
     """Loads subject info from file and returns raw as df"""
     with open(path_in, 'r') as f:
@@ -306,7 +334,7 @@ def load_subj_info(path_in):
     return data
 
 
-def parse_subj_info(path_in, study):
+def parse_subj_info(path_in, study, op_data_only=True):
     """Loads subject info data, renames columns, parses dtypes"""
     data = load_subj_info(path_in=path_in)
     cols = const.SUBJ_INFO_COLNAMES[study]
@@ -316,7 +344,10 @@ def parse_subj_info(path_in, study):
     data = data[colnames_old]  # subset
     data.columns = colnames_new  # rename columns
     data = data.replace(' ', 9999).replace('', 9999)
+    if op_data_only:
+        data = data[data['op_date'] != 9999]
     data = data.astype(dtypes_new)  # parse dtypes
     data = data.replace(9999, np.nan)
+    data = parse_time_cols(data)
     return data
 
