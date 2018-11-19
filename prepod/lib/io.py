@@ -298,3 +298,25 @@ def save_as_pickled(data, path_out):
             f_out.write(bytes_out[idx:idx + max_bytes])
     print('Successfully wrote data to ' + path_out)
 
+
+def load_subj_info(path_in):
+    """Loads subject info from file and returns raw as df"""
+    with open(path_in, 'r') as f:
+        data = pd.read_csv(f)
+    return data
+
+
+def parse_subj_info(path_in, study):
+    """Loads subject info data, renames columns, parses dtypes"""
+    data = load_subj_info(path_in=path_in)
+    cols = const.SUBJ_INFO_COLNAMES[study]
+    colnames_old = [el['old_label'] for el in cols]
+    colnames_new = [el['new_label'] for el in cols]
+    dtypes_new = {el['new_label']: el['dtype'] for el in cols}
+    data = data[colnames_old]  # subset
+    data.columns = colnames_new  # rename columns
+    data = data.replace(' ', 9999).replace('', 9999)
+    data = data.astype(dtypes_new)  # parse dtypes
+    data = data.replace(9999, np.nan)
+    return data
+
