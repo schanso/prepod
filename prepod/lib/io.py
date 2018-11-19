@@ -330,7 +330,7 @@ def parse_time_cols(data):
 def load_subj_info(path_in):
     """Loads subject info from file and returns raw as df"""
     with open(path_in, 'r') as f:
-        data = pd.read_csv(f)
+        data = pd.read_csv(f, dtype='object')
     return data
 
 
