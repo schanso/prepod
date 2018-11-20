@@ -261,14 +261,14 @@ def process_subset(X, y, clf, n_iterations=10):
             'clf': clf}
 
 
-def forward_subset_selection(data, K, **kwargs):
+def forward_subset_selection(data, K, init_combos=3, **kwargs):
     """"""
     results = []
     curr_best = np.array([])
-    for k in range(3, K+1):
+    for k in range(init_combos, K+1):
         # Init with all possible three-fold combinations, then add to the best
         current_labels = np.setdiff1d(data['X_labels'], curr_best)
-        if k == 3:
+        if k == init_combos:
             combos = itertools.combinations(current_labels, k)
             n_combos = sum(1 for _ in combos)
             combos = itertools.combinations(current_labels, k)
