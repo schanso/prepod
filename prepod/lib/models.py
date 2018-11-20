@@ -266,7 +266,7 @@ def forward_subset_selection(data, K, init_combos=3, **kwargs):
     results = []
     curr_best = np.array([])
     for k in range(init_combos, K+1):
-        # Init with all possible three-fold combinations, then add to the best
+        # Init with all possible N-fold combinations, then add to the best
         current_labels = np.setdiff1d(data['X_labels'], curr_best)
         if k == init_combos:
             combos = itertools.combinations(current_labels, k)
@@ -283,7 +283,7 @@ def forward_subset_selection(data, K, init_combos=3, **kwargs):
             X = data['X'][:, idx].squeeze()
             if k == 1:
                 X = X.reshape(-1, 1)
-            res = process_subset(X, data['y'], clf)
+            res = process_subset(X, data['y'], kwargs['clf'])
             res.update({'features': combo, 'n_features':k})
             results.append(res)
 
@@ -293,6 +293,56 @@ def forward_subset_selection(data, K, init_combos=3, **kwargs):
         df = df.sort_values(by='mean_acc', ascending=False)
         df.reset_index(inplace=True)
         curr_best = np.array(df.loc[0, 'features'])
+
+    return results
+
+
+def backward_subset_selection(X, y, X_labels, y_labels, K=1, **kwargs):
+    """"""
+    if not isinstance(y_labels, np.ndarray) or y_labels.ndim == 0:
+        y_labels = np.array(y_labels).reshape(1)
+    data = np.concatenate((X, y.reshape(-1, 1)), axis=1)
+    columns = np.concatenate((X_labels, y_labels), axis=0)
+    df = pd.DataFrame(data=data, columns=columns)
+
+    features = list(X_labels)
+    updated_features = features.copy()
+    n_features = len(features)
+
+    counter = n_features+1
+    results = []
+    while len(updated_features) > K:
+        counter -= 1
+        if counter == n_features:
+            combos = [features]
+            n_combos = len(combos)
+        else:
+            combos = itertools.combinations(updated_features,
+                                            len(updated_features)-1)
+            n_combos = len([el for el in combos])
+            combos = itertools.combinations(updated_features,
+                                            len(updated_features)-1)
+
+        for i, combo in enumerate(combos):
+            print('{}/{} for k = {}'.format(i + 1, n_combos, counter))
+            dropped = ''.join([el for el in updated_features if el not in combo])
+            curr_X = df[list(combo)].values
+            res = process_subset(curr_X, y, kwargs['clf'])
+            res.update({'features': combo,
+                        'n_features': len(combo),
+                        'dropped': dropped})
+            results.append(res)
+
+        # Pass current best to use as base in next iteration
+        res_df = pd.DataFrame(results)
+        res_df = res_df[res_df['n_features'] == counter]
+        res_df = res_df.sort_values(by='mean_acc', ascending=False)
+        res_df.reset_index(inplace=True)
+        dropped_in_best = res_df.loc[0, 'dropped']
+        try:
+            updated_features.remove(dropped_in_best)
+        except ValueError:  # nothing dropped in first
+            pass
 
     return results
 
