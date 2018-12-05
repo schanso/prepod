@@ -174,7 +174,7 @@ def train_test_cv(data, n_leave_out=1, idx=0):
     return dat_train, dat_test, leave_out_subj
 
 
-def train_test_info(X, y, test_size=.5):
+def train_test_info(X, y, test_size=.3):
     """Splits features + target into train and test set (equal props)"""
     # define train, test indices
     idx = np.arange(X.shape[0])
@@ -247,7 +247,7 @@ def svm(data_train, data_test, n_samples=None, kernel='linear'):
     return np.mean(pred == y_)
 
 
-def process_subset(X, y, clf, n_iterations=10):
+def process_subset(X, y, clf, n_iterations=20):
     """"""
     acc = []
     for _ in np.arange(n_iterations):
