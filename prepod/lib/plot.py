@@ -44,16 +44,27 @@ def plot_set_props(ax, props):
         ax : ax
             axes with applied changes
     """
-    props = PLOT_STYLING['props'].copy().update(props)
-    ax.set_xlim(props['xlim'])
-    ax.set_xlim(props['ylim'])
-    ax.set_xticks(props['xticks'])
-    ax.set_yticks(props['yticks'])
-    ax.set_xticklabels(props['xticklabels'])
-    ax.set_yticklabels(props['yticklabels'])
-    ax.set_xlabel(props['xlabel'])
-    ax.set_ylabel(props['ylabel'])
-    ax.legend(props['legend'])
+    init_props = PLOT_STYLING['props']
+    init_props.update(props)
+    props = init_props.copy()
+    if props['xlim'] is not None:
+        ax.set_xlim(props['xlim'])
+    if props['ylim'] is not None:
+        ax.set_ylim(props['ylim'])
+    if props['xticks'] is not None:
+        ax.set_xticks(props['xticks'])
+    if props['yticks'] is not None:
+        ax.set_yticks(props['yticks'])
+    if props['xticklabels'] is not None:
+        ax.set_xticklabels(props['xticklabels'])
+    if props['yticklabels'] is not None:
+        ax.set_yticklabels(props['yticklabels'])
+    if props['xlabel'] is not None:
+        ax.set_xlabel(props['xlabel'])
+    if props['ylabel'] is not None:
+        ax.set_ylabel(props['ylabel'])
+    if props['legend'] is not None:
+        ax.legend(props['legend'])
     return ax
 
 
@@ -88,8 +99,8 @@ def plot_raw_vs_filt(raw, filt, n_sec, t0=60, show=True):
     ax.plot(x, y_raw, c=PLOT_STYLING['c'][0], **styles)
     ax.plot(x, y_filt, c=PLOT_STYLING['c'][1], **styles)
     props = {
-        'xlim': [0, 0+n_sec],
-        'xticks': np.arange(n_sec+1),
+        'xlim': [min(x), max(x)],
+        'xticks': np.linspace(min(x), max(x), n_sec+1),
         'xticklabels': np.arange(t0, t0+n_sec+1),
         'xlabel': 's',
         'ylabel': 'µV',
