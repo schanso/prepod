@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from scipy import signal
 from scipy.signal import butter, lfilter, iirnotch
 from wyrm.processing import append as wyrm_append, segment_dat, select_epochs, calculate_csp, apply_spatial_filter
 from wyrm.types import Data
@@ -162,9 +163,21 @@ def butter_highpass(data, l_cutoff, srate, order=5):
     return data
 
 
-def filter_raw(raw, srate, h_pass=True, l_pass=True, l_cutoff=1, h_cutoff=100,
-               order=5):
-    """Wrapper function for `butter_highpass` and `butter_lowpass`
+def window_bandpass(data, l_cutoff, h_cutoff, srate, numtaps=400):
+    """"""
+    filt = signal.firwin(numtaps, [l_cutoff/srate, h_cutoff/srate], pass_zero=False)
+    if isinstance(data, Data):
+        filt = filt.reshape(-1, 1)
+        _data = signal.convolve(data.data, filt, mode='same')
+        data = data.copy(data=_data)
+    else:
+        data = signal.convolve(data, filt, mode='same')
+    return data
+
+
+def filter_raw(raw, srate, h_pass=False, l_pass=False, b_pass=False, l_cutoff=1,
+               h_cutoff=100, order=5, numtaps=400):
+    """Wrapper function for `butter_highpass`, `butter_lowpass`, `window_bandpass`
 
     Params
     ------
@@ -194,12 +207,18 @@ def filter_raw(raw, srate, h_pass=True, l_pass=True, l_cutoff=1, h_cutoff=100,
         :func: butter_lowpass
     """
     filt = raw.copy()
+    if not h_pass and not l_pass and not b_pass:
+        msg = 'Have to choose either one of h_pass, l_pass, b_pass'
+        raise ValueError(msg)
     if h_pass:
         filt = butter_highpass(data=filt, l_cutoff=l_cutoff, srate=srate,
                                order=order)
     if l_pass:
         filt = butter_lowpass(data=filt, h_cutoff=h_cutoff, srate=srate,
                               order=order)
+    if b_pass:
+        filt = window_bandpass(data=filt, l_cutoff=l_cutoff, h_cutoff=h_cutoff,
+                               srate=srate, numtaps=numtaps)
     return filt
 
 
