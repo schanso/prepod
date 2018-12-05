@@ -14,7 +14,7 @@ import prepod.lib.prep as prep
 
 study = 'Sudocu'
 region = 'frontal'
-freq_band = 'slow'
+freq_band = 'below15'
 lcut, hcut = const.FREQ_BANDS[freq_band]
 
 test_size = .5
@@ -63,7 +63,7 @@ for subj_id in subj_ids:
     path_in = [dir_raw + '/' + el for el in fnames_raw if subj_id in el]
     path_out = '{}/{}/{}.npy'.format(dir_out_filtered, freq_band, subj_id)
     data = io.parse_raw(path_in=path_in, ftype='edf', region=region)
-    filtered = prep.filter_raw(data, srate=data.fs, l_cutoff=lcut, h_cutoff=hcut)
+    filtered = prep.filter_raw(data, srate=data.fs, b_pass=True, l_cutoff=lcut, h_cutoff=hcut)
     io.save_as_npy(data=filtered, path_out=path_out)
 
 
