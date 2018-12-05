@@ -133,7 +133,7 @@ def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True
         raw.info['meas_date']).strftime(const.FORMATS['datetime'])
 
     d = {
-        'signal': signal,
+        'signal': signal * 1000000,  # convert V to µV
         'srate': raw.info['sfreq'],
         'ch_names': raw.info['ch_names'],
         'n_chans': len(raw.info['ch_names']),
@@ -166,7 +166,7 @@ def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True
         if not os.path.exists(dir_out):
             os.makedirs(dir_out)
         path_out = dir_out + paths[0].split('/')[-1].replace(ftype, 'npy')
-        save_as_npy(data=data, path=path_out)
+        save_as_npy(data=data, path_out=path_out)
 
     return data
 
