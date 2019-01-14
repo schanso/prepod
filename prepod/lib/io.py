@@ -108,6 +108,7 @@ def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True
         raw.append(raws)  # append multiple file to continuous signal
 
     raw = strip_ch_names(raw)
+
     if drop_ref:
         to_drop = [el for el in raw.ch_names if 'Ref' in el]
         raw.drop_channels(to_drop)
@@ -115,8 +116,14 @@ def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True
         to_drop = [el for el in raw.ch_names if 'STI' in el]
         raw.drop_channels(to_drop)
     if region and region in const.SUPPORTED_REGIONS:
-        to_drop = [el for el in raw.ch_names
-                   if region[0].upper() not in el]
+        if region == 'full':
+            to_drop = []
+        elif region == 'fronto-parietal':
+            to_drop = [el for el in raw.ch_names
+                       if 'F' not in el and 'P' not in el]
+        else:
+            to_drop = [el for el in raw.ch_names
+                       if region[0].upper() not in el]
         raw.drop_channels(to_drop)
     else:
         print('Your region of interest is not supported. Choose one of '

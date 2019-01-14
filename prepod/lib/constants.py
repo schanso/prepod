@@ -1,7 +1,8 @@
 # Support
 SUPPORTED_FTYPES = ['edf', 'eeg']
 SUPPORTED_FORMATS = ['wyrm', 'dict']
-SUPPORTED_REGIONS = ['central', 'frontal', 'parietal', 'occipital', 'temporal']
+SUPPORTED_REGIONS = ['full', 'central', 'frontal', 'parietal', 'occipital',
+                     'temporal', 'fronto-parietal']
 
 # Formats
 FORMATS = {
