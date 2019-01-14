@@ -222,7 +222,7 @@ def lda(data_train, data_test, solver='lsqr', shrinkage=True):
     return np.mean(pred == y_)
 
 
-def svm(data_train, data_test, n_samples=None, kernel='linear'):
+def svm(data_train, data_test, n_samples=None, kernel='linear', max_iter=5000):
     """Trains and tests SVC
 
     --- IN DEVELOPMENT ---
@@ -238,7 +238,7 @@ def svm(data_train, data_test, n_samples=None, kernel='linear'):
         X_, y_ = X_[:n_samples], y_[:n_samples]
 
     if kernel == 'linear':
-        clf = LinearSVC()
+        clf = LinearSVC(max_iter=max_iter)
     else:
         clf = SVC(gamma='auto')
 
