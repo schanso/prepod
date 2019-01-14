@@ -14,7 +14,7 @@ import prepod.lib.prep as prep
 
 study = 'Sudocu'
 region = 'frontal'
-freq_band = 'below15'
+freq_band = 'alpha'
 lcut, hcut = const.FREQ_BANDS[freq_band]
 
 test_size = .5
@@ -87,15 +87,14 @@ prep.merge_subjects(datasets, path_out=path_out_merged)
 # CLASSIFICATION (VANILLA LDA + SVM)
 
 data = io.load_pickled(path_in=path_out_merged)
-# subj_ids = [el for el in subj_ids if int(el) <= 2347]
 data = prep.subset_data(data, bis_crit=bis_crit, drop_perc=drop_perc, drop_from=drop_from)#, subj_ids=subj_ids)
-data = prep.apply_csp(data, return_as='logvar')
-data = prep.create_fvs(data)
 
 x, acc_all_runs = [], []
 print('Start training on subjects: {}'.format(', '.join(subj_ids)))
 for i in range(len(subj_ids)):
     data_train, data_test, left_out = models.train_test_cv(data, n_leave_out=n_leave_out, idx=i)
+    data_train = prep.apply_csp(data_train, return_as='logvar')
+    data_test = prep.apply_csp(data_test, return_as='logvar')
     acc = models.lda(data_train=data_train, data_test=data_test, solver=solver, shrinkage=shrink)
     # acc = models.svm(data_train, data_test, kernel=kernel)
     acc_all_runs.append(acc)
@@ -106,6 +105,10 @@ for i in range(len(subj_ids)):
 
 print('Mean over all runs: {} (std: {})'.format(
     np.mean(acc_all_runs), np.std(acc_all_runs)))
+
+
+# FIGURES
+
 path_out_fig = '{}/{}_subset.png'.format(dir_signal, freq_band)
 plot.plot_accuracies(x, acc_all_runs, lcut=lcut, hcut=hcut, path_out=path_out_fig, bis_crit=bis_crit, drop_perc=drop_perc, drop_from=drop_from, show=False)
 path_out_fig = '{}/{}_subset.svg'.format(dir_signal, freq_band)
