@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import pandas as pd
 from scipy import signal
@@ -316,7 +318,6 @@ def merge_subjects(l, path_out=None):
         :type: wyrm.types.Data
         :func: wyrm.processing.append
     """
-    import sys
     if not isinstance(l, list):
         msg = 'Please provide list of `Data` objects to merge, got {}'.format(
             str(type(l))
