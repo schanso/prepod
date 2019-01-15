@@ -350,9 +350,9 @@ def merge_subjects(l, path_out=None):
                 file_counter += 1
                 old_fname = path_out.split('/')[-1].split('.')[-2]
                 new_fname = '{}_0{}'.format(old_fname, file_counter)
-                path_out = path_out.replace(old_fname, new_fname)
+                new_path_out = path_out.replace(old_fname, new_fname)
                 try:
-                    io.save_as_pickled(data=data, path_out=path_out)
+                    io.save_as_pickled(data=data, path_out=new_path_out)
                 except Exception:
                     print('Unable to save data.')
                 finally:
