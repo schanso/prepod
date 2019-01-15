@@ -12,6 +12,7 @@ from wyrm.types import Data
 
 import prepod.lib.constants as const
 import prepod.lib.helpers as hlp
+import prepod.lib.prep as prep
 
 
 logging.getLogger('mne').setLevel(logging.ERROR)
@@ -275,15 +276,36 @@ def load_wyrm(path_in):
 
 def load_pickled(path_in):
     """Loads pickled even if file is > 4 GB"""
-    max_bytes = 2**31 - 1
-    input_size = os.path.getsize(path_in)
-    bytes_in = bytearray(0)
-    print('Loading...')
-    with open(path_in, 'rb') as f_in:
-        for _ in range(0, input_size, max_bytes):
-            bytes_in += f_in.read(max_bytes)
-    data = pickle.loads(bytes_in)
-    print('Successfully loaded data from {}.'.format(path_in))
+    max_bytes = 2 ** 31 - 1
+    data = []
+
+    # While this function does read files > 4 GB, on some file systems
+    # merged data has to be split up into multiple files (i. e., FAT32).
+    # Thus, we check whether current path contains multiple files that
+    # need to be concatenated and merge them at load time (as opposed to
+    # at write time).
+    old_fname = path_in.split('/')[-1].split('.')[-2]
+    dir_in = '/'.join(path_in.split('/')[:-1])
+    fnames = hlp.return_fnames(dir_in=dir_in, substr=old_fname)
+    if not isinstance(fnames, list):
+        fnames = [fnames]
+
+    for new_fname in fnames:
+        path_in = '{}/{}'.format(dir_in, new_fname)
+        input_size = os.path.getsize(path_in)
+        bytes_in = bytearray(0)
+        print('Loading...')
+        with open(path_in, 'rb') as f_in:
+            for _ in range(0, input_size, max_bytes):
+                bytes_in += f_in.read(max_bytes)
+        data.append(pickle.loads(bytes_in))
+        print('Successfully loaded data from {}.'.format(path_in))
+
+    if len(data) > 1:
+        data = prep.merge_subjects(l=data)
+    else:
+        data = data[0]
+
     return data
 
 
