@@ -330,10 +330,12 @@ def merge_subjects(l, path_out=None):
         msg = 'At least two objects are needed for merge.'
         raise TypeError(msg)
 
-    data = None
+    data, new_file_needed, file_counter = None, False, 0
     for idx, el in enumerate(l):
-        if idx == 0:
+        if idx == 0 or new_file_needed:
             data = el
+            if new_file_needed:
+                new_file_needed = False
         else:
             data = wyrm_append(data, el, extra=['bis', 'subj_id', 'markers'])
 
@@ -341,12 +343,21 @@ def merge_subjects(l, path_out=None):
         size = sys.getsizeof(data.data)
         print('Size in MB: {:.3f}'.format(size/1e6))
 
-    # Save as pickled because file size might be (well) over 4 GB
-    if path_out:
-        try:
-            io.save_as_pickled(data=data, path_out=path_out)
-        except Exception:
-            print('Unable to save data.')
+        # Write to file on last iteration or if file size would
+        # potentially grow to beyond 4 GB
+        if idx+1 == len(l) or size/1e6 > 3500:
+            if path_out:
+                file_counter += 1
+                old_fname = path_out.split('/')[-1].split('.')[-2]
+                new_fname = '{}_0{}'.format(old_fname, file_counter)
+                path_out = path_out.replace(old_fname, new_fname)
+                try:
+                    io.save_as_pickled(data=data, path_out=path_out)
+                except Exception:
+                    print('Unable to save data.')
+                finally:
+                    if idx+1 != len(l):
+                        new_file_needed = True
 
     return data
 
