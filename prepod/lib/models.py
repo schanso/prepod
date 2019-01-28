@@ -149,18 +149,22 @@ def train_test_cv(data, n_leave_out=1, idx=0):
     X_test = data.data[idx_test, :].squeeze()
     y_train = data.axes[0][idx_train]
     y_test = data.axes[0][idx_test]
+    subj_train = data.subj_id[idx_train]
+    subj_test = data.subj_id[idx_test]
 
     # Equalize proportions in training data
     n_classes = len(np.unique(y_train))
     idx_equalized = equalize_proportions(labels=y_train, n_classes=n_classes)
     X_train = X_train[idx_equalized, :].squeeze()
     y_train = y_train[idx_equalized]
+    subj_train = subj_train[idx_equalized]
 
     # Equalize proportions in test data
     n_classes = len(np.unique(y_test))
     idx_equalized = equalize_proportions(labels=y_test, n_classes=n_classes)
     X_test = X_test[idx_equalized, :].squeeze()
     y_test = y_test[idx_equalized]
+    subj_test = subj_test[idx_equalized]
 
     ax_train = data.axes[:]
     ax_train[0] = y_train
@@ -170,6 +174,10 @@ def train_test_cv(data, n_leave_out=1, idx=0):
     units = data.units[:]
     dat_train = data.copy(data=X_train, axes=ax_train, names=names, units=units)
     dat_test = data.copy(data=X_test, axes=ax_test, names=names, units=units)
+
+    # Update subj_id array after dropping entries
+    dat_train.subj_id = subj_train
+    dat_test.subj_id = subj_test
 
     return dat_train, dat_test, leave_out_subj
 
