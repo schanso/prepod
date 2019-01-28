@@ -611,6 +611,61 @@ def apply_csp(data, return_as='filtered', time_axis=1):
         return filtered
 
 
+def append_external_features(data, fpath, features=('age', 'med_auf_sevoflurane'), study='Sudocu'):
+    """Add non-EEG/CSP features to feature vector during training.
+
+    In the current setup, the data is split into train and test set, then the
+    CSPs are calculated. Only afterwards can we introduce external features by
+    just appending them to the vectors.
+
+    Params
+    ------
+        data : wyrm.Data
+            Data object with 2D axes
+        fpath : str
+            Path to subject info including external factors
+        features : list/tuple of column names of features of interest,
+            will be used to subset pd.DataFrame.
+        study : str
+            `parse_subj_info` needs a study string to get the correct
+            info file.
+
+    Returns
+    -------
+        data : wyrm.Data
+            Data object with 2D axes
+
+    See also
+    --------
+        :func: apply_csp
+        :func: parse_subj_info
+    """
+    unique_subj_ids = np.unique(data.subj_id)
+    subj_info = io.parse_subj_info(fpath, study)
+    cols = ['subj_id'] + list(features)
+    subj_info = subj_info[cols]
+    # fill nan cols with col average
+    subj_info = subj_info.apply(lambda x: x.fillna(x.mean()), axis=0)
+
+    temp_data = []
+    for subj in unique_subj_ids:
+        features_subj = np.array(subj_info[subj_info['subj_id'] == subj])[:, 1:]
+        features_subj = features_subj.astype(float)
+        idx_subj = np.where(data.subj_id == subj)[0]
+        data_subj = data.data[idx_subj].copy()
+        features_subj = features_subj.reshape(1, -1)
+        features_subj = np.repeat(features_subj, data_subj.shape[0], axis=0)
+        data_subj = np.hstack((data_subj, features_subj))
+        temp_data.append(data_subj)
+
+    temp_data = np.vstack(temp_data)
+    axes = data.axes.copy()
+    axes[1] = np.arange(temp_data.shape[0])
+    data = data.copy(data=temp_data, axes=axes)
+
+    return data
+
+
 def drop_na(data, cols):
     """Drops rows with have at least one NaN value from df"""
     for col in cols:
