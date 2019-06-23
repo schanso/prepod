@@ -645,6 +645,8 @@ def create_fvs(data):
 def apply_csp(data, return_as='filtered', time_axis=1, columns_to_apply=(0, 1, -2, -1)):
     """Calculates and applies CSP"""
     w, a, d = calculate_csp(data)
+    if return_as == 'patterns':
+        return w, a
     w = w[:, list(columns_to_apply)]
     filtered = apply_spatial_filter(data, w)
     if return_as == 'logvar':
