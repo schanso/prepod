@@ -3,7 +3,9 @@ from datetime import datetime as dt
 
 import mne
 import numpy as np
-from matplotlib import rc
+import matplotlib as mpl
+mpl.use('TkAgg')
+mpl.rc('font', family = 'serif', serif = 'cmr10')
 import matplotlib.pyplot as plt
 
 import prepod.lib.constants as const
@@ -22,8 +24,8 @@ path_out = '/Users/jannes/Projects/delir/results/plots/psd/{}_{}_{}.png'.format(
                                                                                 regions[0],
                                                                                 freq_bands[0])
 n_components = 4
-rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
-rc('text', usetex=True)
+plt.rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
+plt.rc('text', usetex=True)
 
 # PATHS
 path_data = '/Users/jannes/Projects/delir/data/'
