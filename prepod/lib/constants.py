@@ -2,7 +2,7 @@
 SUPPORTED_FTYPES = ['edf', 'eeg']
 SUPPORTED_FORMATS = ['wyrm', 'dict']
 SUPPORTED_REGIONS = ['full', 'central', 'frontal', 'parietal', 'occipital',
-                     'temporal', 'fronto-parietal']
+                     'temporal', 'fronto-parietal', 'pre-frontal']
 
 # Formats
 FORMATS = {
@@ -24,6 +24,38 @@ FREQ_BANDS = {
     'below40': (.5, 39.9),
     'below50': (.5, 49)
 }
+
+# Sensors
+CH_NAMES = ['Fp1', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz', 'C4', 'T4', 'T5', 'P3', 'Pz', 'P4', 'T6', 'O1', 'O2']
+SENSOR_LOCS = [
+    {'x': -0.139036, 'y': 0.427980, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'Fp1'},
+    {'x': 0.000000, 'y': 0.450000, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'Fpz'},
+    {'x': 0.139086, 'y': 0.427994, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'Fp2'},
+    {'x': -0.364052, 'y': 0.264534, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'F7'},
+    {'x': -0.186808, 'y': 0.232745, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'F3'},
+    {'x': 0.000000, 'y': 0.225021, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'Fz'},
+    {'x': 0.186808, 'y': 0.232745, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'F4'},
+    {'x': 0.364052, 'y': 0.264534, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'F8'},
+    {'x': -0.480000, 'y': 0.000046, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'T3'},
+    {'x': -0.364052, 'y': -0.264402, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'T5'},
+    {'x': -0.450000, 'y': 0.000014, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'T7'},
+    {'x': -0.225000, 'y': 0.000046, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'C3'},
+    {'x': 0.000000, 'y': 0.000072, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'Cz'},
+    {'x': 0.225000, 'y': 0.000046, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'C4'},
+    {'x': 0.480000, 'y': 0.000046, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'T4'},
+    {'x': 0.364052, 'y': -0.264402, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'T6'},
+    {'x': 0.450000, 'y': 0.000014, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'T8'},
+    {'x': -0.364075, 'y': -0.264522, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'P7'},
+    {'x': -0.186850, 'y': -0.232613, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'P3'},
+    {'x': 0.000000, 'y': -0.224952, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'Pz'},
+    {'x': 0.186850, 'y': -0.232613, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'P4'},
+    {'x': 0.364075, 'y': -0.264522, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'P8'},
+    {'x': -0.139045, 'y': -0.427979, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'O1'},
+    {'x': 0.000000, 'y': -0.450000, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'Oz'},
+    {'x': 0.139045, 'y': -0.427979, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'O2'},
+    {'x': -0.547000, 'y': -0.500000, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'COMNT'},
+    {'x': 0.547000, 'y': -0.500000, 'width': 0.125128, 'height': 0.093849, 'ch_name': 'SCALE'}
+]
 
 # Plot Styling
 props_keys = ['xlim', 'ylim', 'xticklabels', 'yticklabels', 'xlabel', 'ylabel',

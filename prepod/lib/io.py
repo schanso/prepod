@@ -9,6 +9,8 @@ import mne
 import numpy as np
 import pandas as pd
 from wyrm.types import Data
+import matplotlib as mpl
+mpl.use('TkAgg')
 
 import prepod.lib.constants as const
 import prepod.lib.helpers as hlp
@@ -26,6 +28,50 @@ def strip_ch_names(raw):
     new_names = dict(zip(old_names, new_names))
     raw.rename_channels(new_names)
     return raw
+
+
+def raw_to_mne(path_in):
+    """Loads raw from files of supported ftypes"""
+    ftype = path_in.split('.')[-1]
+    if ftype not in const.SUPPORTED_FTYPES:
+        msg = 'File type {} not supported. Choose one of {}'.format(
+            ftype, ', '.join(const.SUPPORTED_FTYPES))
+        raise TypeError(msg)
+
+    if isinstance(path_in, list):
+        paths = path_in
+    else:
+        if os.path.isdir(path_in):
+            path_in = path_in + '/' if path_in[-1] != '/' else path_in
+            paths = [path_in + el for el in hlp.return_fnames(path_in, substr=ftype)]
+        else:
+            paths = [path_in.strip()]
+
+    subj_id = paths[0].split('/')[-1].split('_')[0]
+    raw, raws = None, []
+
+    for idx, path in enumerate(paths):
+        if idx == 0:
+            if ftype == 'edf':
+                raw = mne.io.read_raw_edf(path, preload=True)
+            elif ftype == 'eeg':
+                path = path.replace(ftype, 'vhdr')
+                raw = mne.io.read_raw_brainvision(path, preload=True)
+            raw.cals = np.array([])
+        else:
+            if ftype == 'edf':
+                _raw = mne.io.read_raw_edf(path, preload=True)
+            elif ftype == 'eeg':
+                path = path.replace(ftype, 'vhdr')
+                _raw = mne.io.read_raw_brainvision(path, preload=True)
+            raws.append(_raw)
+
+    if len(raws):
+        raw.append(raws)  # append multiple file to continuous signal
+
+    raw = strip_ch_names(raw)
+    return raw
+
 
 
 def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True,
@@ -122,6 +168,9 @@ def parse_raw(path_in, dir_out=None, ftype=None, region='frontal', drop_ref=True
         elif region == 'fronto-parietal':
             to_drop = [el for el in raw.ch_names
                        if 'F' not in el and 'P' not in el]
+        elif region == 'pre-frontal':
+            to_drop = [el for el in raw.ch_names
+                       if 'Fp' not in el]
         else:
             to_drop = [el for el in raw.ch_names
                        if region[0].upper() not in el]
@@ -380,3 +429,14 @@ def parse_subj_info(path_in, study, op_data_only=True):
     data = parse_time_cols(data)
     return data
 
+
+def construct_layout():
+    """Constructs a sensor layout to be consumed by mne.viz plotting"""
+    locs = const.SENSOR_LOCS
+    x = [el['x'] for el in locs]
+    y = [el['y'] for el in locs]
+    box = (min(x), max(x), min(y), max(y))
+    pos = np.array([[float(i) for i in list(el.values())[:-1]] for el in locs])
+    ids = names = [el['ch_name'] for el in locs]
+    kind = '10/20'
+    return mne.channels.Layout(box, pos, names, ids, kind)
