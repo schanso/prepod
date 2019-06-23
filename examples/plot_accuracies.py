@@ -6,15 +6,17 @@ mpl.rc('font', family = 'serif', serif = 'cmr10', size=10)
 import matplotlib.pyplot as plt
 import pandas as pd
 
-target_freq = 'theta'
+target_freq = 'slow'
+target_region = 'fronto-parietal'
 bis_crit = 40
 win_length = 60
 path_in = '/Users/jannes/Projects/delir/results/acc/20190623162000_res.csv'
-path_out = '/Users/jannes/Projects/delir/results/plots/acc/{}_{}_{}s_{}bis_{}.png'.format(dt.now().strftime('%Y%m%d%H%M%S'),
-                                                                                          target_freq,
-                                                                                          win_length,
-                                                                                          bis_crit,
-                                                                                          'perc_blocks')
+path_out = '/Users/jannes/Projects/delir/results/plots/acc/{}_{}_{}_{}s_{}bis_{}.png'.format(dt.now().strftime('%Y%m%d%H%M%S'),
+                                                                                             target_freq,
+                                                                                             target_region,
+                                                                                             win_length,
+                                                                                             bis_crit,
+                                                                                             'minute_blocks')
 names = ['temp_idx','date','mean_lda','std_lda','mean_svm','std_svm','region','freq_band','test_size','n_leave_out','win_length','bis_crit','drop_perc','drop_from','solver','shrink','kernel','include_external','external_factors','n_runs','use_min','use_from','below_500_lda', 'below_500_svm']
 df = pd.read_csv(path_in, header=None, names=names, sep=',', skiprows=0)
 
@@ -29,8 +31,9 @@ for idx, use_from in enumerate(use_froms):
     mask2 = df['use_min'].isin(use_mins)
     mask3 = df['bis_crit'] == bis_crit
     mask4 = df['win_length'] == win_length
+    mask5 = df['region'] == target_region
 
-    masked = df[mask0 & mask1 & mask2 & mask3 & mask4]
+    masked = df[mask0 & mask1 & mask2 & mask3 & mask4 & mask5]
     masked = masked[target_cols]
     data = masked.groupby('use_min').max()
     data = data.reset_index()
