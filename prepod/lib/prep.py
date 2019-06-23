@@ -479,7 +479,8 @@ def segment_data(data, win_length):
     return data
 
 
-def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning', subj_ids=None):
+def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning',
+                subj_ids=None, use_min=None, use_from=None):
     """Subsets an epoched Data object by BIS value and intra-OP time
 
     It might be useful to only look at data aligned with critical BIS
@@ -497,6 +498,14 @@ def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning', subj
             if drop_perc is passed, will drop from beginning or end of OP
             * 'beginning': drop from beginning
             * 'end': drop from end
+        use_min : tuple of (start, stop)
+            only use minutes between use_min[1] and use_min[2],
+            if use_from == 'beginning' start must be < stop,
+            if use_from == 'end' start must be > stop
+        use_from : str
+            if use_min is passed, will use minute marks at beginning/end of OP
+            * 'beginning': use_min relative to OP start
+            * 'end': use_min relative to OP end
 
     Returns
     -------
@@ -509,25 +518,9 @@ def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning', subj
                 and not isinstance(subj_ids, list)):
             msg = 'When passing `subj_ids`, have to pass list or np.ndarray.'
             raise TypeError(msg)
-
-    dat = data.data.copy()
-    bis = data.bis.copy()
-
-    axes = data.axes.copy()
-    subj_id = data.subj_id.copy()
-
-    # only keep windows where BIS <= bis_crit
-    if bis_crit:
-        new_idx = np.where(np.all(bis <= bis_crit, axis=1))
-        dat = dat[new_idx]
-        bis = bis[new_idx]
-        axes[0] = axes[0][new_idx]
-        subj_id = subj_id[new_idx]
-
-    data.data = dat
-    data.bis = bis
-    data.axes = axes
-    data.subj_id = subj_id
+    if drop_perc and use_min:
+        msg = 'Can only use either drop_perc or use_min'
+        raise ValueError(msg)
 
     dat = data.data.copy()
     subj_id = data.subj_id.copy()
@@ -555,6 +548,56 @@ def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning', subj
         idx_to_keep = np.concatenate(idx_to_keep).ravel()
         data = select_epochs(data, indices=idx_to_keep)
         data.subj_id = data.subj_id[idx_to_keep]
+        data.bis = data.bis[idx_to_keep]
+
+    if use_min:
+        if use_from not in ['beginning', 'end']:
+            msg = 'use_from must be one of \'beginning\', \'end\'.'
+            raise ValueError(msg)
+
+        unique_subj_ids = np.unique(subj_id)
+        idx_to_keep = []
+        for subj in unique_subj_ids:
+            idx_subj = np.where(subj_id == subj)[0]
+            data_subset = dat[idx_subj, :, :].squeeze()
+            n_samples_per_epoch = data_subset.shape[1]
+            n_samples_to_keep = (max(use_min) - min(use_min)) * 60 * data.fs
+            n_epochs_to_keep = int(np.floor(n_samples_to_keep/n_samples_per_epoch))
+
+            if use_from == 'beginning':
+                n_samples_to_drop_before = min(use_min) * 60 * data.fs
+                n_epochs_to_drop_before = int(np.floor(n_samples_to_drop_before/n_samples_per_epoch))
+                idx_to_keep.append(idx_subj[n_epochs_to_drop_before:n_epochs_to_drop_before+n_epochs_to_keep])
+            elif use_from == 'end':
+                n_samples_to_drop_after = min(use_min) * 60 * data.fs
+                n_epochs_to_drop_after = int(np.floor(n_samples_to_drop_after/n_samples_per_epoch))
+                start = -n_epochs_to_drop_after-n_epochs_to_keep
+                stop = -n_epochs_to_drop_after if n_epochs_to_drop_after != 0 else -1
+                idx_to_keep.append(idx_subj[start:stop])
+
+        idx_to_keep = np.concatenate(idx_to_keep).ravel()
+        data = select_epochs(data, indices=idx_to_keep)
+        data.subj_id = data.subj_id[idx_to_keep]
+        data.bis = data.bis[idx_to_keep]
+
+    dat = data.data.copy()
+    bis = data.bis.copy()
+
+    axes = data.axes.copy()
+    subj_id = data.subj_id.copy()
+
+    # only keep windows where BIS <= bis_crit
+    if bis_crit:
+        new_idx = np.where(np.all(bis <= bis_crit, axis=1))
+        dat = dat[new_idx]
+        bis = bis[new_idx]
+        axes[0] = axes[0][new_idx]
+        subj_id = subj_id[new_idx]
+
+    data.data = dat
+    data.bis = bis
+    data.axes = axes
+    data.subj_id = subj_id
 
     if subj_ids:
         mask = np.isin(data.subj_id, subj_ids)
