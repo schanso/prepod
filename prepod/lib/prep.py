@@ -479,7 +479,7 @@ def segment_data(data, win_length):
     return data
 
 
-def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning',
+def subset_data(init_data, bis_crit=None, drop_perc=None, drop_from='beginning',
                 subj_ids=None, use_min=None, use_from=None):
     """Subsets an epoched Data object by BIS value and intra-OP time
 
@@ -522,6 +522,7 @@ def subset_data(data, bis_crit=None, drop_perc=None, drop_from='beginning',
         msg = 'Can only use either drop_perc or use_min'
         raise ValueError(msg)
 
+    data = init_data.copy()
     dat = data.data.copy()
     subj_id = data.subj_id.copy()
 

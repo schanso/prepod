@@ -213,7 +213,7 @@ def train_test_info(X, y, test_size=.3):
     return X_train, X_test, y_train, y_test
 
 
-def lda(data_train, data_test, solver='lsqr', shrinkage=True):
+def lda(data_train, data_test, solver='lsqr', return_per_patient=False, shrinkage=True):
     """Trains and test LDA classifier"""
     if solver not in ['svd', 'lsqr', 'eigen']:
         msg = 'Solver must be one of \'svd\', \'lsqr\', \'eigen\'.'
@@ -227,10 +227,20 @@ def lda(data_train, data_test, solver='lsqr', shrinkage=True):
     clf = LDA(solver=solver)
     clf.fit(X, y)
     pred = clf.predict(X_)
+    if return_per_patient:
+        mask0 = pred == '0'
+        mask1 = y_ == '0'
+        mask2 = pred == y_
+        class_0 = len(pred[mask0 & mask2]) / len(y_[mask1])
+        mask0 = pred == '1'
+        mask1 = y_ == '1'
+        mask2 = pred == y_
+        class_1 = len(pred[mask0 & mask2]) / len(y_[mask1])
+        return np.mean(pred == y_), class_0, class_1
     return np.mean(pred == y_)
 
 
-def svm(data_train, data_test, n_samples=None, kernel='linear', max_iter=5000):
+def svm(data_train, data_test, n_samples=None, kernel='linear', return_per_patient=False, max_iter=10000):
     """Trains and tests SVC
 
     --- IN DEVELOPMENT ---
@@ -248,10 +258,20 @@ def svm(data_train, data_test, n_samples=None, kernel='linear', max_iter=5000):
     if kernel == 'linear':
         clf = LinearSVC(max_iter=max_iter)
     else:
-        clf = SVC(gamma='auto')
+        clf = SVC(gamma='scale')
 
     clf.fit(X, y)
     pred = clf.predict(X_)
+    if return_per_patient:
+        mask0 = pred == '0'
+        mask1 = y_ == '0'
+        mask2 = pred == y_
+        class_0 = len(pred[mask0 & mask2]) / len(y_[mask1])
+        mask0 = pred == '1'
+        mask1 = y_ == '1'
+        mask2 = pred == y_
+        class_1 = len(pred[mask0 & mask2]) / len(y_[mask1])
+        return np.mean(pred == y_), class_0, class_1
     return np.mean(pred == y_)
 
 
