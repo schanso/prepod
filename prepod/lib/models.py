@@ -240,7 +240,7 @@ def lda(data_train, data_test, solver='lsqr', return_per_patient=False, shrinkag
     return np.mean(pred == y_)
 
 
-def svm(data_train, data_test, n_samples=None, kernel='linear', return_per_patient=False, max_iter=10000):
+def svm(data_train, data_test, n_samples=None, kernel='linear', return_per_patient=False, max_iter=5000):
     """Trains and tests SVC
 
     --- IN DEVELOPMENT ---
