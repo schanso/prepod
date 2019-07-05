@@ -79,7 +79,7 @@ for region in regions:
                 _data = io.load_pickled(path_in=path_out_merged)
             except Exception:
                 datasets = []
-                for subj_id in subj_ids[:10]:
+                for subj_id in subj_ids:
                     curr_fname = hlp.return_fnames(dir_in=dir_signal, substr=subj_id)
                     path_signal = '{}/{}'.format(dir_signal, hlp.return_fnames(dir_in=dir_signal, substr=subj_id))
                     path_bis = dir_bis + subj_id + '/'
@@ -96,97 +96,91 @@ for region in regions:
                 for use_from in use_froms:
                     for use_min in use_mins:
                         data = prep.subset_data(_data, bis_crit=bis_crit, drop_perc=drop_perc, drop_from=drop_from, use_min=use_min, use_from=use_from)
-                        x, acc_lda_all_runs, acc_svm_all_runs, acc_svm_lin_all_runs, acc_lda_eigen_all_runs = [], [], [], [], []
+                        x, acc_lda_all_runs, acc_svm_all_runs, acc_svm_lin_all_runs = [], [], [], []
                         acc_lda_class0_all_runs, acc_lda_class1_all_runs = [], []
                         acc_svm_class0_all_runs, acc_svm_class1_all_runs = [], []
                         acc_svm_lin_class0_all_runs, acc_svm_lin_class1_all_runs = [], []
-                        acc_lda_eigen_class0_all_runs, acc_lda_eigen_class1_all_runs = [], []
+                        print('{}, {}, {}s, BIS {}, {} from {}'.format(region, freq_band, win_length, bis_crit, use_min, use_from))
                         print('Start training on subjects: {}'.format(', '.join(subj_ids)))
-                        for i in range(len(subj_ids)):
-                            try:
-                                data_train, data_test, left_out = models.train_test_cv(data, n_leave_out=n_leave_out, idx=i)
-                                data_train = prep.apply_csp(data_train, return_as='logvar')
-                                data_test = prep.apply_csp(data_test, return_as='logvar')
-                                if include_external:
-                                    data_train = prep.append_external_features(data_train, fpath=path_labels)
-                                    data_test = prep.append_external_features(data_test, fpath=path_labels)
-                                acc_lda, acc_lda_class0, acc_lda_class1 = models.lda(data_train=data_train, data_test=data_test, solver=solver, shrinkage=shrink, return_per_patient=True)
-                                acc_svm, acc_svm_class0, acc_svm_class1 = models.svm(data_train, data_test, kernel=kernel, return_per_patient=True)
-                                acc_svm_lin, acc_svm_lin_class0, acc_svm_lin_class1 = models.svm(data_train, data_test, kernel='linear', return_per_patient=True)
-                                acc_lda_eigen, acc_lda_eigen_class0, acc_lda_eigen_class1 = models.lda(data_train=data_train, data_test=data_test, solver='eigen', shrinkage='auto', return_per_patient=True)
-                                acc_lda_all_runs.append(acc_lda)
-                                acc_lda_class0_all_runs.append(acc_lda_class0)
-                                acc_lda_class1_all_runs.append(acc_lda_class1)
-                                acc_svm_all_runs.append(acc_svm)
-                                acc_svm_class0_all_runs.append(acc_svm_class0)
-                                acc_svm_class1_all_runs.append(acc_svm_class1)
-                                acc_svm_lin_all_runs.append(acc_svm_lin)
-                                acc_svm_lin_class0_all_runs.append(acc_svm_lin_class0)
-                                acc_svm_lin_class1_all_runs.append(acc_svm_lin_class1)
-                                acc_lda_eigen_all_runs.append(acc_lda_eigen)
-                                acc_lda_eigen_class0_all_runs.append(acc_lda_eigen_class0)
-                                acc_lda_eigen_class1_all_runs.append(acc_lda_eigen_class1)
-                                x.append(', '.join(left_out))
+                        try:
+                            for i in range(len(subj_ids)):
+                                try:
+                                    data_train, data_test, left_out = models.train_test_cv(data, n_leave_out=n_leave_out, idx=i)
+                                    data_train = prep.apply_csp(data_train, return_as='logvar')
+                                    data_test = prep.apply_csp(data_test, return_as='logvar')
+                                    if include_external:
+                                        data_train = prep.append_external_features(data_train, fpath=path_labels)
+                                        data_test = prep.append_external_features(data_test, fpath=path_labels)
+                                    acc_lda, acc_lda_class0, acc_lda_class1 = models.lda(data_train=data_train, data_test=data_test, solver=solver, shrinkage=shrink, return_per_patient=True)
+                                    acc_svm, acc_svm_class0, acc_svm_class1 = models.svm(data_train, data_test, kernel=kernel, return_per_patient=True)
+                                    acc_svm_lin, acc_svm_lin_class0, acc_svm_lin_class1 = models.svm(data_train, data_test, kernel='linear', return_per_patient=True)
+                                    acc_lda_all_runs.append(acc_lda)
+                                    acc_lda_class0_all_runs.append(acc_lda_class0)
+                                    acc_lda_class1_all_runs.append(acc_lda_class1)
+                                    acc_svm_all_runs.append(acc_svm)
+                                    acc_svm_class0_all_runs.append(acc_svm_class0)
+                                    acc_svm_class1_all_runs.append(acc_svm_class1)
+                                    acc_svm_lin_all_runs.append(acc_svm_lin)
+                                    acc_svm_lin_class0_all_runs.append(acc_svm_lin_class0)
+                                    acc_svm_lin_class1_all_runs.append(acc_svm_lin_class1)
+                                    x.append(', '.join(left_out))
 
-                                print('Run {}/{}: {:.3f} (LDA), {:.3f} (SVM), {:.3f} (SVM_lin), {:.3f} (SVM_eigen) (left out: {})'.format(
-                                    i+1, len(subj_ids), acc_lda, acc_svm, acc_svm_lin , acc_lda_eigen, left_out))
-                            except IndexError:
-                                print('Not enough data for all other subjects. Will break.')
-                                break
+                                    print('Run {}/{}: {:.3f} (LDA), {:.3f} (SVM), {:.3f} (SVM_lin) (left out: {})'.format(
+                                        i+1, len(subj_ids), acc_lda, acc_svm, acc_svm_lin , left_out))
+                                except IndexError:
+                                    print('Not enough data for all other subjects. Will break.')
+                                    break
 
-                        print('Mean over all runs:\n LDA: {} (std: {})\n SVM: {} (std: {})\n SVM_lin: {} (std: {})\n LDA_eigen: {} (std: {})'.format(
-                            np.mean(acc_lda_all_runs), np.std(acc_lda_all_runs),
-                            np.mean(acc_svm_all_runs), np.std(acc_svm_all_runs),
-                            np.mean(acc_svm_lin_all_runs), np.std(acc_svm_lin_all_runs),
-                            np.mean(acc_lda_eigen_all_runs), np.std(acc_lda_eigen_all_runs)
-                        ))
+                            print('Mean over all runs:\n LDA: {} (std: {})\n SVM: {} (std: {})\n SVM_lin: {} (std: {})'.format(
+                                np.mean(acc_lda_all_runs), np.std(acc_lda_all_runs),
+                                np.mean(acc_svm_all_runs), np.std(acc_svm_all_runs),
+                                np.mean(acc_svm_lin_all_runs), np.std(acc_svm_lin_all_runs)
+                            ))
 
-                        d = {
-                            'date': datetime.datetime.now(),
-                            'mean_lda': np.mean(acc_lda_all_runs),
-                            'std_lda': np.std(acc_lda_all_runs),
-                            'mean_svm': np.mean(acc_svm_all_runs),
-                            'std_svm': np.std(acc_svm_all_runs),
-                            'region': region,
-                            'freq_band': freq_band,
-                            'test_size': test_size,
-                            'n_leave_out': n_leave_out,
-                            'win_length': win_length,
-                            'bis_crit': bis_crit,
-                            'drop_perc': drop_perc,
-                            'drop_from': drop_from,
-                            'solver': solver,
-                            'shrink': shrink,
-                            'kernel': kernel,
-                            'include_external': include_external,
-                            'external_factors': 'None',
-                            'n_runs': len(acc_lda_all_runs),
-                            'use_min': str(use_min),
-                            'use_from': use_from,
-                            'below_500_lda': len(np.where(np.array(acc_lda_all_runs) < .501)[0]),
-                            'below_500_svm': len(np.where(np.array(acc_svm_all_runs) < .501)[0]),
-                            'acc_lda_class0_all_runs': str(acc_lda_class0_all_runs),
-                            'acc_lda_class1_all_runs': str(acc_lda_class1_all_runs),
-                            'acc_svm_class0_all_runs': str(acc_svm_class0_all_runs),
-                            'acc_svm_class1_all_runs': str(acc_svm_class1_all_runs),
-                            'mean_svm_lin': np.mean(acc_svm_lin_all_runs),
-                            'std_svm_lin': np.std(acc_svm_lin_all_runs),
-                            'acc_svm_lin_class0_all_runs': str(acc_svm_lin_class0_all_runs),
-                            'acc_svm_lin_class1_all_runs': str(acc_svm_lin_class1_all_runs),
-                            'mean_lda_eigen': np.mean(acc_lda_eigen_all_runs),
-                            'std_lda_eigen': np.std(acc_lda_eigen_all_runs),
-                            'acc_lda_eigen_class0_all_runs': str(acc_lda_eigen_class0_all_runs),
-                            'acc_lda_eigen_class1_all_runs': str(acc_lda_eigen_class1_all_runs)
-                        }
-                        cols = ['date', 'mean_lda', 'std_lda', 'mean_svm', 'std_svm', 'region', 'freq_band',
-                                'test_size', 'n_leave_out', 'win_length', 'bis_crit', 'drop_perc', 'drop_from',
-                                'solver', 'shrink', 'kernel', 'include_external', 'external_factors', 'n_runs',
-                                'use_min', 'use_from', 'below_500_lda', 'below_500_svm', 'acc_lda_class0_all_runs',
-                                'acc_lda_class1_all_runs', 'acc_svm_class0_all_runs', 'acc_svm_class1_all_runs',
-                                'mean_svm_lin', 'std_svm_lin', 'acc_svm_lin_class0_all_runs', 'acc_svm_lin_class1_all_runs',
-                                'mean_lda_eigen', 'std_lda_eigen', 'acc_lda_eigen_class0_all_runs', 'acc_lda_eigen_class1_all_runs']
+                            d = {
+                                'date': datetime.datetime.now(),
+                                'mean_lda': np.mean(acc_lda_all_runs),
+                                'std_lda': np.std(acc_lda_all_runs),
+                                'mean_svm': np.mean(acc_svm_all_runs),
+                                'std_svm': np.std(acc_svm_all_runs),
+                                'region': region,
+                                'freq_band': freq_band,
+                                'test_size': test_size,
+                                'n_leave_out': n_leave_out,
+                                'win_length': win_length,
+                                'bis_crit': bis_crit,
+                                'drop_perc': drop_perc,
+                                'drop_from': drop_from,
+                                'solver': solver,
+                                'shrink': shrink,
+                                'kernel': kernel,
+                                'include_external': include_external,
+                                'external_factors': 'None',
+                                'n_runs': len(acc_lda_all_runs),
+                                'use_min': str(use_min),
+                                'use_from': use_from,
+                                'below_500_lda': len(np.where(np.array(acc_lda_all_runs) < .501)[0]),
+                                'below_500_svm': len(np.where(np.array(acc_svm_all_runs) < .501)[0]),
+                                'acc_lda_class0_all_runs': str(acc_lda_class0_all_runs),
+                                'acc_lda_class1_all_runs': str(acc_lda_class1_all_runs),
+                                'acc_svm_class0_all_runs': str(acc_svm_class0_all_runs),
+                                'acc_svm_class1_all_runs': str(acc_svm_class1_all_runs),
+                                'mean_svm_lin': np.mean(acc_svm_lin_all_runs),
+                                'std_svm_lin': np.std(acc_svm_lin_all_runs),
+                                'acc_svm_lin_class0_all_runs': str(acc_svm_lin_class0_all_runs),
+                                'acc_svm_lin_class1_all_runs': str(acc_svm_lin_class1_all_runs)
+                            }
+                            cols = ['date', 'mean_lda', 'std_lda', 'mean_svm', 'std_svm', 'region', 'freq_band',
+                                    'test_size', 'n_leave_out', 'win_length', 'bis_crit', 'drop_perc', 'drop_from',
+                                    'solver', 'shrink', 'kernel', 'include_external', 'external_factors', 'n_runs',
+                                    'use_min', 'use_from', 'below_500_lda', 'below_500_svm', 'acc_lda_class0_all_runs',
+                                    'acc_lda_class1_all_runs', 'acc_svm_class0_all_runs', 'acc_svm_class1_all_runs',
+                                    'mean_svm_lin', 'std_svm_lin', 'acc_svm_lin_class0_all_runs', 'acc_svm_lin_class1_all_runs']
 
-                        df = pd.DataFrame(d, index=[0], columns=cols)
-                        path = '/Users/jannes/Projects/delir/results/acc/res.csv'
-                        with open(path, 'a') as f:
-                            df.to_csv(f, header=False)
+                            df = pd.DataFrame(d, index=[0], columns=cols)
+                            path = '/Users/jannes/Projects/delir/results/acc/res.csv'
+                            with open(path, 'a') as f:
+                                df.to_csv(f, header=False)
+                        except Exception as e:
+                            print(e)
+                            continue
