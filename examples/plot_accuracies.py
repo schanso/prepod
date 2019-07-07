@@ -41,9 +41,9 @@ for idx, use_from in enumerate(use_froms):
     data = data.reset_index()
     if idx == 1:
         data = data.iloc[::-1]
-    errors = data[['std_lda', 'std_svm']]
+    errors = data[['std_lda', 'std_svm', 'std_svm_lin']]
 
-    data.plot(x='use_min', y=['mean_lda', 'mean_svm_lin', 'mean_svm'], kind='bar', ax=axes[idx], color=['#fe2151', '#999999', '#333333'], edgecolor = '#000000', label=['LDA', 'SVM (linear)', 'SVM (rbf)'])
+    data.plot(x='use_min', y=['mean_lda', 'mean_svm_lin', 'mean_svm'], yerr=errors.values.T, error_kw=dict(ecolor='#606060', linewidth=0.5, alpha=0.8, capsize=2, linestyle='--'), kind='bar', ax=axes[idx], color=['#fe2151', '#999999', '#333333'], edgecolor = '#000000', label=['LDA', 'SVM (linear)', 'SVM (rbf)'])
     axes[idx].set_ylim([0, 1])
     axes[idx].legend(loc = 3)
     axes[idx].set_ylabel('Accuracy', fontsize=12, labelpad=15)
