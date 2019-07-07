@@ -323,7 +323,7 @@ def load_wyrm(path_in):
     return data
 
 
-def load_pickled(path_in):
+def load_pickled(path_in, n_max_files=None):
     """Loads pickled even if file is > 4 GB"""
     max_bytes = 2 ** 31 - 1
     data = []
@@ -338,6 +338,9 @@ def load_pickled(path_in):
     fnames = hlp.return_fnames(dir_in=dir_in, substr=old_fname)
     if not isinstance(fnames, list):
         fnames = [fnames]
+
+    if n_max_files:
+        fnames = fnames[:n_max_files]
 
     for new_fname in fnames:
         path_in = '{}/{}'.format(dir_in, new_fname)
